@@ -1,0 +1,199 @@
+[
+  {
+    "name": "Noctua NF-A12x25",
+    "type": "axial",
+    "size_mm": 120,
+    "curve": [
+      {"cfm": 0, "pa": 220},
+      {"cfm": 50, "pa": 180},
+      {"cfm": 100, "pa": 140},
+      {"cfm": 150, "pa": 80},
+      {"cfm": 200, "pa": 0}
+    ],
+    "power_w": 1.2,
+    "noise_db": 22.4,
+    "max_rpm": 2000,
+    "price_usd": 25.0
+  },
+  {
+    "name": "Delta AFB1212HH",
+    "type": "axial",
+    "size_mm": 120,
+    "curve": [
+      {"cfm": 0, "pa": 300},
+      {"cfm": 80, "pa": 250},
+      {"cfm": 160, "pa": 180},
+      {"cfm": 240, "pa": 80},
+      {"cfm": 320, "pa": 0}
+    ],
+    "power_w": 3.6,
+    "noise_db": 45,
+    "max_rpm": 4000,
+    "price_usd": 15.0
+  },
+  {
+    "name": "EBM Papst R2E190-AD81-13",
+    "type": "radial",
+    "size_mm": 190,
+    "curve": [
+      {"cfm": 0, "pa": 800},
+      {"cfm": 300, "pa": 700},
+      {"cfm": 600, "pa": 550},
+      {"cfm": 900, "pa": 350},
+      {"cfm": 1200, "pa": 100},
+      {"cfm": 1500, "pa": 0}
+    ],
+    "power_w": 45.0,
+    "noise_db": 55,
+    "max_rpm": 2800,
+    "price_usd": 120.0
+  },
+  {
+    "name": "Fantech FG Series 4\"",
+    "type": "inline_duct",
+    "size_mm": 100,
+    "curve": [
+      {"cfm": 0, "pa": 400},
+      {"cfm": 200, "pa": 350},
+      {"cfm": 400, "pa": 250},
+      {"cfm": 600, "pa": 120},
+      {"cfm": 800, "pa": 0}
+    ],
+    "power_w": 28.0,
+    "noise_db": 38,
+    "max_rpm": 2500,
+    "price_usd": 85.0
+  },
+  {
+    "name": "Fantech FG Series 6\"",
+    "type": "inline_duct",
+    "size_mm": 150,
+    "curve": [
+      {"cfm": 0, "pa": 500},
+      {"cfm": 400, "pa": 450},
+      {"cfm": 800, "pa": 350},
+      {"cfm": 1200, "pa": 200},
+      {"cfm": 1600, "pa": 50},
+      {"cfm": 2000, "pa": 0}
+    ],
+    "power_w": 68.0,
+    "noise_db": 42,
+    "max_rpm": 2500,
+    "price_usd": 145.0
+  },
+  {
+    "name": "Fantech FG Series 8\"",
+    "type": "inline_duct",
+    "size_mm": 200,
+    "curve": [
+      {"cfm": 0, "pa": 600},
+      {"cfm": 600, "pa": 550},
+      {"cfm": 1200, "pa": 450},
+      {"cfm": 1800, "pa": 300},
+      {"cfm": 2400, "pa": 120},
+      {"cfm": 3000, "pa": 0}
+    ],
+    "power_w": 110.0,
+    "noise_db": 48,
+    "max_rpm": 2500,
+    "price_usd": 220.0
+  },
+  {
+    "name": "Fantech FG Series 10\"",
+    "type": "inline_duct",
+    "size_mm": 250,
+    "curve": [
+      {"cfm": 0, "pa": 700},
+      {"cfm": 800, "pa": 650},
+      {"cfm": 1600, "pa": 550},
+      {"cfm": 2400, "pa": 400},
+      {"cfm": 3200, "pa": 200},
+      {"cfm": 4000, "pa": 0}
+    ],
+    "power_w": 180.0,
+    "noise_db": 52,
+    "max_rpm": 2500,
+    "price_usd": 320.0
+  },
+  {
+    "name": "AC Infinity Cloudline T6",
+    "type": "inline_duct",
+    "size_mm": 150,
+    "curve": [
+      {"cfm": 0, "pa": 450},
+      {"cfm": 350, "pa": 400},
+      {"cfm": 700, "pa": 300},
+      {"cfm": 1050, "pa": 150},
+      {"cfm": 1400, "pa": 0}
+    ],
+    "power_w": 45.0,
+    "noise_db": 35,
+    "max_rpm": 3000,
+    "price_usd": 180.0
+  },
+  {
+    "name": "AC Infinity Cloudline T8",
+    "type": "inline_duct",
+    "size_mm": 200,
+    "curve": [
+      {"cfm": 0, "pa": 550},
+      {"cfm": 500, "pa": 500},
+      {"cfm": 1000, "pa": 400},
+      {"cfm": 1500, "pa": 250},
+      {"cfm": 2000, "pa": 50},
+      {"cfm": 2500, "pa": 0}
+    ],
+    "power_w": 75.0,
+    "noise_db": 40,
+    "max_rpm": 3000,
+    "price_usd": 250.0
+  },
+  {
+    "name": "Mining Rack Fan Array",
+    "type": "rack_mount",
+    "size_mm": 120,
+    "curve": [
+      {"cfm": 0, "pa": 150},
+      {"cfm": 300, "pa": 120},
+      {"cfm": 600, "pa": 80},
+      {"cfm": 900, "pa": 30},
+      {"cfm": 1200, "pa": 0}
+    ],
+    "power_w": 15.0,
+    "noise_db": 50,
+    "max_rpm": 2500,
+    "price_usd": 80.0
+  },
+  {
+    "name": "High-Static Pressure Centrifugal",
+    "type": "centrifugal",
+    "size_mm": 150,
+    "curve": [
+      {"cfm": 0, "pa": 1200},
+      {"cfm": 200, "pa": 1100},
+      {"cfm": 400, "pa": 950},
+      {"cfm": 600, "pa": 750},
+      {"cfm": 800, "pa": 500},
+      {"cfm": 1000, "pa": 200},
+      {"cfm": 1200, "pa": 0}
+    ],
+    "power_w": 150.0,
+    "noise_db": 65,
+    "max_rpm": 3000,
+    "price_usd": 400.0
+  }
+]
+
+
+
+
+
+
+
+
+
+
+
+
+
+

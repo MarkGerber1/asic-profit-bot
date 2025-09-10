@@ -1,0 +1,12 @@
+services:
+  - type: worker
+    name: asic-profit-bot
+    env: python
+    plan: free
+    region: frankfurt
+    buildCommand: "pip install -r Bot/requirements.txt"
+    startCommand: "python Bot/main_fixed_final.py"
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+

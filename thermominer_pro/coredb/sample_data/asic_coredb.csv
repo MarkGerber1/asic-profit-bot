@@ -1,0 +1,38 @@
+vendor,model,tdp_w_min,tdp_w_max,theta_chip_coolant_c_per_w,theta_chip_case_c_per_w,theta_case_sink_c_per_w,stock_fans_cfm,stock_fans_static_pressure_pa,fan_curve,noise_db,t_junc_max_c,t_pcb_max_c,t_inlet_air_max_c,hydro_req_flow_lpm,hydro_deltaT_chip_coolant_c,hydro_max_pressure_bar,hydro_max_inlet_c,block_pressure_drop_kpa,dimensions_mm,heat_zones,status,notes,extra
+Bitmain,Antminer S19,95,110,0.025,0.12,0.25,120,150,,70,90,80,40,,,,,,"{""L"":430,""W"":195.5,""H"":290,""Weight"":14200}",,active,Entry-level S19 series with standard cooling,,
+Bitmain,Antminer S19 Pro,100,110,0.022,0.11,0.22,120,150,,70,90,80,40,,,,,,"{""L"":430,""W"":195.5,""H"":290,""Weight"":14200}",,active,Professional S19 with improved efficiency,,
+Bitmain,Antminer S19j,90,100,0.023,0.115,0.23,120,150,,70,90,80,40,,,,,,"{""L"":430,""W"":195.5,""H"":290,""Weight"":14200}",,active,Standard S19j model,,
+Bitmain,Antminer S19j Pro,100,110,0.02,0.1,0.2,120,150,,70,90,80,40,10,5,1.0,45,20,"{""L"":430,""W"":195.5,""H"":290,""Weight"":14200}",,active,High-performance S19j with enhanced cooling,,
+Bitmain,Antminer S19k Pro,135,150,0.018,0.09,0.18,120,150,,70,90,80,40,12,5,1.0,45,25,"{""L"":430,""W"":195.5,""H"":290,""Weight"":14200}",,active,K series with superior efficiency,,
+Bitmain,Antminer S19 XP,140,150,0.017,0.085,0.17,120,150,,70,90,80,40,12,5,1.0,45,25,"{""L"":430,""W"":195.5,""H"":290,""Weight"":14200}",,active,Extreme performance model,,
+Bitmain,Antminer S19 Hydro,160,180,0.015,0.08,0.16,60,100,,65,95,85,35,15,4,1.2,50,30,"{""L"":430,""W"":195.5,""H"":290,""Weight"":15800}",,active,Hydro-cooled variant with integrated liquid cooling,,
+Bitmain,Antminer S21,200,220,0.014,0.07,0.14,130,180,,72,95,85,40,18,4,1.2,50,35,"{""L"":430,""W"":195.5,""H"":290,""Weight"":16200}",,active,Next-gen S21 with advanced cooling,,
+Bitmain,Antminer S21 XP,473,473,0.013,0.065,0.13,130,180,,72,95,85,40,22,4,1.2,50,40,"{""L"":430,""W"":195.5,""H"":290,""Weight"":16200}",,active,Extreme performance S21 model,,
+MicroBT,Whatsminer M20S,68,72,0.028,0.14,0.28,100,120,,68,90,80,40,,,,,,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,Entry-level M20 series,,
+MicroBT,Whatsminer M21S,56,62,0.032,0.16,0.32,100,120,,68,90,80,40,,,,,,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,Efficient M21 series,,
+MicroBT,Whatsminer M30S,88,100,0.025,0.125,0.25,120,150,,70,90,80,40,,,,,,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M30 mainstream model,,
+MicroBT,Whatsminer M30S+,100,110,0.022,0.11,0.22,120,150,,70,90,80,40,,,,,,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M30S+ with enhanced performance,,
+MicroBT,Whatsminer M31S,70,76,0.029,0.145,0.29,100,120,,68,90,80,40,,,,,,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M31 series efficiency model,,
+MicroBT,Whatsminer M31S+,78,84,0.027,0.135,0.27,100,120,,68,90,80,40,,,,,,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M31S+ enhanced model,,
+MicroBT,Whatsminer M50,118,132,0.021,0.105,0.21,130,160,,72,95,85,40,14,5,1.0,45,28,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M50 high-performance model,,
+MicroBT,Whatsminer M50S,106,126,0.022,0.11,0.22,130,160,,72,95,85,40,14,5,1.0,45,28,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M50S variant,,
+MicroBT,Whatsminer M50S+,126,140,0.019,0.095,0.19,130,160,,72,95,85,40,14,5,1.0,45,28,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M50S+ with improved efficiency,,
+MicroBT,Whatsminer M53,214,230,0.016,0.08,0.16,140,180,,74,95,85,40,20,4,1.2,50,35,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M53 next-generation high performance,,
+MicroBT,Whatsminer M56,212,226,0.016,0.08,0.16,140,180,,74,95,85,40,20,4,1.2,50,35,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M56 efficiency-focused model,,
+MicroBT,Whatsminer M56S+,212,226,0.016,0.08,0.16,140,180,,74,95,85,40,20,4,1.2,50,35,"{""L"":390,""W"":150,""H"":240,""Weight"":12500}",,active,M56S+ enhanced performance,,
+Bitmain,Antminer S17 (deprecated),50,60,0.035,0.175,0.35,80,100,,65,85,75,45,,,,,,"{""L"":298,""W"":178,""H"":296,""Weight"":9500}",,deprecated,Legacy S17 series - use with caution,,
+Bitmain,Antminer S17 Pro (deprecated),50,60,0.032,0.16,0.32,80,100,,65,85,75,45,,,,,,"{""L"":298,""W"":178,""H"":296,""Weight"":9500}",,deprecated,Legacy S17 Pro - deprecated,,
+Bitmain,Antminer S19a (rare),100,110,0.022,0.11,0.22,120,150,,70,90,80,40,,,,,,"{""L"":430,""W"":195.5,""H"":290,""Weight"":14200}",,rare,Rare S19a model - limited availability,,
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,36 @@
+# Python caches
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+Bot/venv/
+.env
+.env.*
+
+# Databases & logs
+*.sqlite3
+*.db
+error.log
+Bot/error.log
+
+# OS/artifacts
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build/Dist
+build/
+dist/
+*.egg-info/
+
+# Local data
+Bot/users.db
+Bot/bot_cache.db
+

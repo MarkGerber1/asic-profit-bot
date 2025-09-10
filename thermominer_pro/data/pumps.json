@@ -1,0 +1,168 @@
+[
+  {
+    "name": "EKWB D5 Vario",
+    "type": "D5",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 4.0},
+      {"flow_lpm": 10.0, "head_m": 3.8},
+      {"flow_lpm": 20.0, "head_m": 3.2},
+      {"flow_lpm": 30.0, "head_m": 2.4},
+      {"flow_lpm": 40.0, "head_m": 1.4},
+      {"flow_lpm": 50.0, "head_m": 0.0}
+    ],
+    "power_w": 23.0,
+    "efficiency": 0.35,
+    "max_pressure_bar": 0.4,
+    "price_usd": 120.0,
+    "noise_db": 25
+  },
+  {
+    "name": "EKWB DDC 3.2",
+    "type": "DDC",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 5.2},
+      {"flow_lpm": 8.0, "head_m": 5.0},
+      {"flow_lpm": 16.0, "head_m": 4.4},
+      {"flow_lpm": 24.0, "head_m": 3.4},
+      {"flow_lpm": 32.0, "head_m": 2.2},
+      {"flow_lpm": 40.0, "head_m": 0.8}
+    ],
+    "power_w": 25.0,
+    "efficiency": 0.32,
+    "max_pressure_bar": 0.52,
+    "price_usd": 130.0,
+    "noise_db": 28
+  },
+  {
+    "name": "Laing D5",
+    "type": "D5",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 4.2},
+      {"flow_lpm": 12.0, "head_m": 4.0},
+      {"flow_lpm": 24.0, "head_m": 3.5},
+      {"flow_lpm": 36.0, "head_m": 2.8},
+      {"flow_lpm": 48.0, "head_m": 1.8},
+      {"flow_lpm": 60.0, "head_m": 0.5}
+    ],
+    "power_w": 25.0,
+    "efficiency": 0.33,
+    "max_pressure_bar": 0.42,
+    "price_usd": 110.0,
+    "noise_db": 22
+  },
+  {
+    "name": "Alphacool DC-LT 50/60",
+    "type": "DC",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 2.8},
+      {"flow_lpm": 15.0, "head_m": 2.6},
+      {"flow_lpm": 30.0, "head_m": 2.2},
+      {"flow_lpm": 45.0, "head_m": 1.6},
+      {"flow_lpm": 60.0, "head_m": 0.8}
+    ],
+    "power_w": 12.0,
+    "efficiency": 0.40,
+    "max_pressure_bar": 0.28,
+    "price_usd": 80.0,
+    "noise_db": 20
+  },
+  {
+    "name": "Aquacomputer D5 NEXT",
+    "type": "D5",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 4.5},
+      {"flow_lpm": 15.0, "head_m": 4.3},
+      {"flow_lpm": 30.0, "head_m": 3.8},
+      {"flow_lpm": 45.0, "head_m": 3.0},
+      {"flow_lpm": 60.0, "head_m": 2.0},
+      {"flow_lpm": 75.0, "head_m": 0.8}
+    ],
+    "power_w": 28.0,
+    "efficiency": 0.36,
+    "max_pressure_bar": 0.45,
+    "price_usd": 140.0,
+    "noise_db": 26
+  },
+  {
+    "name": "Phobya DC-12-400",
+    "type": "DC",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 3.5},
+      {"flow_lpm": 12.0, "head_m": 3.3},
+      {"flow_lpm": 24.0, "head_m": 2.8},
+      {"flow_lpm": 36.0, "head_m": 2.2},
+      {"flow_lpm": 48.0, "head_m": 1.4},
+      {"flow_lpm": 60.0, "head_m": 0.3}
+    ],
+    "power_w": 18.0,
+    "efficiency": 0.38,
+    "max_pressure_bar": 0.35,
+    "price_usd": 95.0,
+    "noise_db": 24
+  },
+  {
+    "name": "Swiftech MCP35X",
+    "type": "D5",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 5.0},
+      {"flow_lpm": 20.0, "head_m": 4.8},
+      {"flow_lpm": 40.0, "head_m": 4.2},
+      {"flow_lpm": 60.0, "head_m": 3.2},
+      {"flow_lpm": 80.0, "head_m": 2.0},
+      {"flow_lpm": 100.0, "head_m": 0.5}
+    ],
+    "power_w": 35.0,
+    "efficiency": 0.31,
+    "max_pressure_bar": 0.50,
+    "price_usd": 160.0,
+    "noise_db": 30
+  },
+  {
+    "name": "CoolIT Systems Vantage",
+    "type": "integrated",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 6.0},
+      {"flow_lpm": 25.0, "head_m": 5.8},
+      {"flow_lpm": 50.0, "head_m": 5.2},
+      {"flow_lpm": 75.0, "head_m": 4.2},
+      {"flow_lpm": 100.0, "head_m": 2.8},
+      {"flow_lpm": 125.0, "head_m": 1.0}
+    ],
+    "power_w": 45.0,
+    "efficiency": 0.29,
+    "max_pressure_bar": 0.60,
+    "price_usd": 250.0,
+    "noise_db": 35
+  },
+  {
+    "name": "Mining-grade Centrifugal Pump",
+    "type": "centrifugal",
+    "curve": [
+      {"flow_lpm": 0.0, "head_m": 8.0},
+      {"flow_lpm": 50.0, "head_m": 7.5},
+      {"flow_lpm": 100.0, "head_m": 6.5},
+      {"flow_lpm": 150.0, "head_m": 5.0},
+      {"flow_lpm": 200.0, "head_m": 3.0},
+      {"flow_lpm": 250.0, "head_m": 0.5}
+    ],
+    "power_w": 120.0,
+    "efficiency": 0.45,
+    "max_pressure_bar": 0.80,
+    "price_usd": 400.0,
+    "noise_db": 55
+  }
+]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
