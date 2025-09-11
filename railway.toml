@@ -1,0 +1,12 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "./Bot/Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+restartPolicyType = "ON_FAILURE"
+startCommand = "python main_fixed_final.py"
+
+[build.watchPatterns]
+- "Bot/**"
+- "requirements.txt"
