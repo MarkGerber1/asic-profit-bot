@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     region: frankfurt
-    buildCommand: "pip install -r Bot/requirements.txt"
+    buildCommand: "cd Bot && pip install -r requirements.txt"
     startCommand: "cd Bot && python main_fixed_final.py"
     envVars:
       - key: BOT_TOKEN
