@@ -1168,6 +1168,13 @@ async def main():
     # Предзагрузка списка майнеров для калькулятора (не блокирует запуск)
     asyncio.create_task(load_wtm_miners_if_needed(force=True))
 
+    # Удаляем возможный webhook, чтобы включить long polling
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        print("✅ Webhook cleared before polling")
+    except Exception as e:
+        print(f"⚠️ delete_webhook error: {e}")
+
     # Запуск polling
     await dp.start_polling(bot)
 
