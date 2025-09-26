@@ -1,0 +1,2 @@
+[15664:9916:0911/073354.024:VERBOSE1:chrome\updater\win\installer\installer.cc:494] "C:\Users\Admin\Desktop\Asic_profit_bot\thermominer_pro\ChromeSetup.exe" --silent --install --install=appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&browser=0&usagestats=1&appname=Google%20Chrome&needsadmin=prefers&brand=GTPM --enable-logging --vmodule=*/components/winhttp/*=1,*/components/update_client/*=2,*/chrome/enterprise_companion/*=2,*/chrome/updater/*=2
+[15664:9916:0911/073532.647:VERBOSE1:chrome\updater\win\installer\installer.cc:611] Metainstaller WMain returning: 3

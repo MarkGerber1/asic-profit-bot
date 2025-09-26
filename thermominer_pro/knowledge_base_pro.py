@@ -775,3 +775,12 @@ if __name__ == "__main__":
     print("\n=== ASIC Cooling Learning Path ===")
     for article in kb.get_learning_path("asic_cooling"):
         print(f"- {article.title} ({article.difficulty})")
+
+
+
+
+
+
+
+
+

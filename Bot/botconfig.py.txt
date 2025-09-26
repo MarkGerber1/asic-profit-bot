@@ -1,0 +1,8 @@
+import os
+from typing import Final
+
+BOT_TOKEN: Final = os.getenv("BOT_TOKEN") or "YOUR_TELEGRAM_TOKEN_HERE"
+ASICMINERVALUE_URL: Final = "https://www.asicminervalue.com/miners"
+WHATTOMINE_URL: Final = "https://whattomine.com/asics"
+DEFAULT_KWH: Final = 0.10
+REFRESH_HOURS: Final = 12

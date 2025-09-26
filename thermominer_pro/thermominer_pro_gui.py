@@ -52,7 +52,7 @@ if PYQT_VERSION:
 
         def init_ui(self):
             """Initialize the main UI components."""
-            self.setWindowTitle("ThermoMiner Pro - Thermal Calculator for Mining Farms")
+            self.setWindowTitle("ThermoMiner Pro - Интеллектуальный Калькулятор Охлаждения Майнинг-Ферм")
             self.setGeometry(100, 100, 1200, 800)
 
             # Create central widget with tab widget
@@ -60,13 +60,13 @@ if PYQT_VERSION:
             self.setCentralWidget(self.tabs)
 
             # Add tabs
-            self.tabs.addTab(self.create_hydro_tab(), "Hydro Cooling")
-            self.tabs.addTab(self.create_airflow_tab(), "Air Cooling")
-            self.tabs.addTab(self.create_comparison_tab(), "Comparison")
-            self.tabs.addTab(self.create_knowledge_tab(), "Knowledge Base")
+            self.tabs.addTab(self.create_hydro_tab(), "Жидкостное Охлаждение")
+            self.tabs.addTab(self.create_airflow_tab(), "Воздушное Охлаждение")
+            self.tabs.addTab(self.create_comparison_tab(), "Сравнение")
+            self.tabs.addTab(self.create_knowledge_tab(), "База Знаний")
 
             # Status bar
-            self.statusBar().showMessage("Ready")
+            self.statusBar().showMessage("Готов")
 
             # Menu bar
             self.create_menu()
@@ -77,45 +77,45 @@ if PYQT_VERSION:
             layout = QVBoxLayout(tab)
 
             # Input section
-            input_group = QGroupBox("Input Parameters")
+            input_group = QGroupBox("Входные Параметры")
             input_layout = QFormLayout(input_group)
 
             # ASIC selection
             self.vendor_combo = QComboBox()
             self.vendor_combo.addItems(["Bitmain", "MicroBT"])
             self.vendor_combo.currentTextChanged.connect(self.update_models)
-            input_layout.addRow("Vendor:", self.vendor_combo)
+            input_layout.addRow("Производитель:", self.vendor_combo)
 
             self.model_combo = QComboBox()
-            input_layout.addRow("Model:", self.model_combo)
+            input_layout.addRow("Модель:", self.model_combo)
 
             # Parameters
             self.tdp_input = QDoubleSpinBox()
             self.tdp_input.setRange(50, 500)
             self.tdp_input.setValue(100)
-            input_layout.addRow("TDP (W):", self.tdp_input)
+            input_layout.addRow("Мощность TDP (Вт):", self.tdp_input)
 
             self.theta_input = QDoubleSpinBox()
             self.theta_input.setRange(0.01, 1.0)
             self.theta_input.setDecimals(3)
             self.theta_input.setValue(0.02)
-            input_layout.addRow("Thermal Resistance (°C/W):", self.theta_input)
+            input_layout.addRow("Термическое сопротивление (°C/Вт):", self.theta_input)
 
             self.coolant_temp_input = QDoubleSpinBox()
             self.coolant_temp_input.setRange(10, 50)
             self.coolant_temp_input.setValue(25)
-            input_layout.addRow("Coolant Inlet (°C):", self.coolant_temp_input)
+            input_layout.addRow("Входная температура (°C):", self.coolant_temp_input)
 
             layout.addWidget(input_group)
 
             # Calculate button
-            self.calc_hydro_btn = QPushButton("Calculate Hydro System")
+            self.calc_hydro_btn = QPushButton("Рассчитать Систему Жидкостного Охлаждения")
             self.calc_hydro_btn.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; padding: 10px; }")
             self.calc_hydro_btn.clicked.connect(self.calculate_hydro)
             layout.addWidget(self.calc_hydro_btn)
 
             # Results section
-            results_group = QGroupBox("Results")
+            results_group = QGroupBox("Результаты")
             results_layout = QVBoxLayout(results_group)
 
             self.hydro_results = QTextEdit()
@@ -135,39 +135,39 @@ if PYQT_VERSION:
             layout = QVBoxLayout(tab)
 
             # Room configuration
-            room_group = QGroupBox("Room Configuration")
+            room_group = QGroupBox("Конфигурация Помещения")
             room_layout = QFormLayout(room_group)
 
             self.room_length = QDoubleSpinBox()
             self.room_length.setRange(3, 50)
             self.room_length.setValue(10)
-            room_layout.addRow("Length (m):", self.room_length)
+            room_layout.addRow("Длина (м):", self.room_length)
 
             self.room_width = QDoubleSpinBox()
             self.room_width.setRange(3, 30)
             self.room_width.setValue(6)
-            room_layout.addRow("Width (m):", self.room_width)
+            room_layout.addRow("Ширина (м):", self.room_width)
 
             self.room_height = QDoubleSpinBox()
             self.room_height.setRange(2, 10)
             self.room_height.setValue(3)
-            room_layout.addRow("Height (m):", self.room_height)
+            room_layout.addRow("Высота (м):", self.room_height)
 
             layout.addWidget(room_group)
 
             # ASIC configuration
-            asic_group = QGroupBox("ASIC Configuration")
+            asic_group = QGroupBox("Конфигурация ASIC")
             asic_layout = QFormLayout(asic_group)
 
             self.total_tdp = QDoubleSpinBox()
             self.total_tdp.setRange(1000, 100000)
             self.total_tdp.setValue(3000)
-            asic_layout.addRow("Total TDP (W):", self.total_tdp)
+            asic_layout.addRow("Общая мощность TDP (Вт):", self.total_tdp)
 
             layout.addWidget(asic_group)
 
             # Calculate button
-            self.calc_airflow_btn = QPushButton("Calculate Airflow Requirements")
+            self.calc_airflow_btn = QPushButton("Рассчитать Требования к Вентиляции")
             self.calc_airflow_btn.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; padding: 10px; }")
             self.calc_airflow_btn.clicked.connect(self.calculate_airflow)
             layout.addWidget(self.calc_airflow_btn)
@@ -184,13 +184,13 @@ if PYQT_VERSION:
             tab = QWidget()
             layout = QVBoxLayout(tab)
 
-            layout.addWidget(QLabel("Scenario Comparison Tool"))
+            layout.addWidget(QLabel("Инструмент Сравнения Сценариев"))
 
             # Scenario inputs
             scenarios_layout = QHBoxLayout()
 
             # Air cooling
-            air_group = QGroupBox("Air Cooling Scenario")
+            air_group = QGroupBox("Сценарий Воздушного Охлаждения")
             air_layout = QFormLayout(air_group)
 
             self.air_capex = QDoubleSpinBox()
@@ -201,12 +201,12 @@ if PYQT_VERSION:
             self.air_power = QDoubleSpinBox()
             self.air_power.setRange(0, 1000)
             self.air_power.setValue(120)
-            air_layout.addRow("Power (W):", self.air_power)
+            air_layout.addRow("Мощность (Вт):", self.air_power)
 
             scenarios_layout.addWidget(air_group)
 
             # Hydro cooling
-            hydro_group = QGroupBox("Hydro Cooling Scenario")
+            hydro_group = QGroupBox("Сценарий Жидкостного Охлаждения")
             hydro_layout = QFormLayout(hydro_group)
 
             self.hydro_capex = QDoubleSpinBox()
@@ -217,7 +217,7 @@ if PYQT_VERSION:
             self.hydro_power = QDoubleSpinBox()
             self.hydro_power.setRange(0, 1000)
             self.hydro_power.setValue(80)
-            hydro_layout.addRow("Power (W):", self.hydro_power)
+            hydro_layout.addRow("Мощность (Вт):", self.hydro_power)
 
             scenarios_layout.addWidget(hydro_group)
 
@@ -225,7 +225,7 @@ if PYQT_VERSION:
 
             # Electricity price
             price_layout = QHBoxLayout()
-            price_layout.addWidget(QLabel("Electricity Price ($/kWh):"))
+            price_layout.addWidget(QLabel("Цена Электроэнергии ($/кВт·ч):"))
             self.elec_price = QDoubleSpinBox()
             self.elec_price.setRange(0.01, 1.0)
             self.elec_price.setValue(0.10)
@@ -235,7 +235,7 @@ if PYQT_VERSION:
             layout.addLayout(price_layout)
 
             # Compare button
-            self.compare_btn = QPushButton("Compare Scenarios")
+            self.compare_btn = QPushButton("Сравнить Сценарии")
             self.compare_btn.setStyleSheet("QPushButton { font-size: 14px; font-weight: bold; padding: 10px; }")
             self.compare_btn.clicked.connect(self.compare_scenarios_gui)
             layout.addWidget(self.compare_btn)
@@ -254,7 +254,7 @@ if PYQT_VERSION:
 
             # Search
             search_layout = QHBoxLayout()
-            search_layout.addWidget(QLabel("Search:"))
+            search_layout.addWidget(QLabel("Поиск:"))
             self.kb_search = QLineEdit()
             self.kb_search.textChanged.connect(self.search_kb)
             search_layout.addWidget(self.kb_search)
@@ -283,14 +283,14 @@ if PYQT_VERSION:
             menubar = self.menuBar()
 
             # File menu
-            file_menu = menubar.addMenu('File')
-            exit_action = QAction('Exit', self)
+            file_menu = menubar.addMenu('Файл')
+            exit_action = QAction('Выход', self)
             exit_action.triggered.connect(self.close)
             file_menu.addAction(exit_action)
 
             # Help menu
-            help_menu = menubar.addMenu('Help')
-            about_action = QAction('About', self)
+            help_menu = menubar.addMenu('Справка')
+            about_action = QAction('О программе', self)
             about_action.triggered.connect(self.show_about)
             help_menu.addAction(about_action)
 
@@ -345,7 +345,7 @@ Radiator System:
 - Performance Margin: {margin:.1%}
 """
                 self.hydro_results.setText(results)
-                self.statusBar().showMessage("Hydro calculation completed")
+                self.statusBar().showMessage("Расчет гидроохлаждения завершен")
 
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Calculation failed: {str(e)}")
@@ -384,7 +384,7 @@ Recommended Fan Configuration:
 - Exhaust Fans: 2 × {airflow/2 * 0.588 / 1000:.1f}k CFM each
 """
                 self.airflow_results.setText(results)
-                self.statusBar().showMessage("Airflow calculation completed")
+                self.statusBar().showMessage("Расчет вентиляции завершен")
 
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Calculation failed: {str(e)}")
@@ -438,7 +438,7 @@ Comparison:
 - ROI: {comparison['alt_roi_per_year']*100:.1f}% per year
 """
                 self.comparison_results.setText(results)
-                self.statusBar().showMessage("Scenario comparison completed")
+                self.statusBar().showMessage("Сравнение сценариев завершено")
 
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Comparison failed: {str(e)}")
@@ -471,7 +471,7 @@ Comparison:
         def load_sample_data(self):
             """Load sample ASIC data."""
             try:
-                n = self.db.import_csv("thermominer_pro/coredb/sample_data/asic_coredb.csv")
+                n = self.db.import_csv("coredb/sample_data/asic_coredb.csv")
                 self.statusBar().showMessage(f"Loaded {n} ASIC models")
             except Exception as e:
                 print(f"Could not load sample data: {e}")
@@ -499,7 +499,7 @@ else:
             self.kb = get_knowledge_base()
 
             self.root = tk.Tk()
-            self.root.title("ThermoMiner Pro - Thermal Calculator for Mining Farms")
+            self.root.title("ThermoMiner Pro - Интеллектуальный Калькулятор Охлаждения Майнинг-Ферм")
             self.root.geometry("1000x700")
 
             self.create_ui()
@@ -513,46 +513,46 @@ else:
 
             # Hydro tab
             hydro_frame = ttk.Frame(self.notebook)
-            self.notebook.add(hydro_frame, text='Hydro Cooling')
+            self.notebook.add(hydro_frame, text='Жидкостное Охлаждение')
             self.create_hydro_tab(hydro_frame)
 
             # Airflow tab
             airflow_frame = ttk.Frame(self.notebook)
-            self.notebook.add(airflow_frame, text='Air Cooling')
+            self.notebook.add(airflow_frame, text='Воздушное Охлаждение')
             self.create_airflow_tab(airflow_frame)
 
             # Comparison tab
             compare_frame = ttk.Frame(self.notebook)
-            self.notebook.add(compare_frame, text='Comparison')
+            self.notebook.add(compare_frame, text='Сравнение')
             self.create_comparison_tab(compare_frame)
 
         def create_hydro_tab(self, parent):
             """Create hydro cooling tab."""
             # Input section
-            input_frame = ttk.LabelFrame(parent, text="Input Parameters")
+            input_frame = ttk.LabelFrame(parent, text="Входные Параметры")
             input_frame.pack(fill='x', padx=10, pady=5)
 
             # TDP input
-            ttk.Label(input_frame, text="TDP (W):").grid(row=0, column=0, sticky='w')
+            ttk.Label(input_frame, text="Мощность TDP (Вт):").grid(row=0, column=0, sticky='w')
             self.tdp_var = tk.StringVar(value="100")
             ttk.Entry(input_frame, textvariable=self.tdp_var).grid(row=0, column=1)
 
             # Thermal resistance
-            ttk.Label(input_frame, text="Thermal Resistance (°C/W):").grid(row=1, column=0, sticky='w')
+            ttk.Label(input_frame, text="Термическое сопротивление (°C/Вт):").grid(row=1, column=0, sticky='w')
             self.theta_var = tk.StringVar(value="0.02")
             ttk.Entry(input_frame, textvariable=self.theta_var).grid(row=1, column=1)
 
             # Coolant temperature
-            ttk.Label(input_frame, text="Coolant Inlet (°C):").grid(row=2, column=0, sticky='w')
+            ttk.Label(input_frame, text="Входная температура (°C):").grid(row=2, column=0, sticky='w')
             self.coolant_temp_var = tk.StringVar(value="25")
             ttk.Entry(input_frame, textvariable=self.coolant_temp_var).grid(row=2, column=1)
 
             # Calculate button
-            ttk.Button(input_frame, text="Calculate Hydro System",
+            ttk.Button(input_frame, text="Рассчитать Систему Жидкостного Охлаждения",
                       command=self.calculate_hydro_tk).grid(row=3, column=0, columnspan=2, pady=10)
 
             # Results
-            results_frame = ttk.LabelFrame(parent, text="Results")
+            results_frame = ttk.LabelFrame(parent, text="Результаты")
             results_frame.pack(fill='both', expand=True, padx=10, pady=5)
 
             self.hydro_results_text = tk.Text(results_frame, wrap=tk.WORD)
@@ -565,26 +565,26 @@ else:
         def create_airflow_tab(self, parent):
             """Create airflow tab."""
             # Room configuration
-            room_frame = ttk.LabelFrame(parent, text="Room Configuration")
+            room_frame = ttk.LabelFrame(parent, text="Конфигурация Помещения")
             room_frame.pack(fill='x', padx=10, pady=5)
 
-            ttk.Label(room_frame, text="Length (m):").grid(row=0, column=0, sticky='w')
+            ttk.Label(room_frame, text="Длина (м):").grid(row=0, column=0, sticky='w')
             self.room_length_var = tk.StringVar(value="10")
             ttk.Entry(room_frame, textvariable=self.room_length_var).grid(row=0, column=1)
 
-            ttk.Label(room_frame, text="Width (m):").grid(row=1, column=0, sticky='w')
+            ttk.Label(room_frame, text="Ширина (м):").grid(row=1, column=0, sticky='w')
             self.room_width_var = tk.StringVar(value="6")
             ttk.Entry(room_frame, textvariable=self.room_width_var).grid(row=1, column=1)
 
-            ttk.Label(room_frame, text="Height (m):").grid(row=2, column=0, sticky='w')
+            ttk.Label(room_frame, text="Высота (м):").grid(row=2, column=0, sticky='w')
             self.room_height_var = tk.StringVar(value="3")
             ttk.Entry(room_frame, textvariable=self.room_height_var).grid(row=2, column=1)
 
-            ttk.Label(room_frame, text="Total TDP (W):").grid(row=3, column=0, sticky='w')
+            ttk.Label(room_frame, text="Общая мощность TDP (Вт):").grid(row=3, column=0, sticky='w')
             self.total_tdp_var = tk.StringVar(value="3000")
             ttk.Entry(room_frame, textvariable=self.total_tdp_var).grid(row=3, column=1)
 
-            ttk.Button(room_frame, text="Calculate Airflow",
+            ttk.Button(room_frame, text="Рассчитать Требования к Вентиляции",
                       command=self.calculate_airflow_tk).grid(row=4, column=0, columnspan=2, pady=10)
 
             # Results
@@ -757,7 +757,7 @@ Calculation completed successfully!
         def load_sample_data(self):
             """Load sample ASIC data."""
             try:
-                n = self.db.import_csv("thermominer_pro/coredb/sample_data/asic_coredb.csv")
+                n = self.db.import_csv("coredb/sample_data/asic_coredb.csv")
                 print(f"Loaded {n} ASIC models")
             except Exception as e:
                 print(f"Could not load sample data: {e}")

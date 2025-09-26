@@ -17,3 +17,12 @@ if __name__ == "__main__":
     print("ThermoMiner Pro - Intelligent Thermal Calculator for Mining Farms")
     print("=" * 70)
     main()
+
+
+
+
+
+
+
+
+

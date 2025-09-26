@@ -1,0 +1,1 @@
+Write-Host "Начинаю установку Google Chrome..." -ForegroundColor Green; Start-Process -FilePath ".\ChromeSetup.exe" -ArgumentList "/silent /install" -Wait; Write-Host "Установка завершена!" -ForegroundColor Green
