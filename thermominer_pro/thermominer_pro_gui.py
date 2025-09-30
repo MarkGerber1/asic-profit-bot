@@ -7,6 +7,7 @@ import sys
 import json
 import os
 from pathlib import Path
+import traceback
 
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(__file__))
@@ -304,45 +305,392 @@ if PYQT_VERSION:
             for asic in asics[:10]:  # Limit to 10 for UI
                 self.model_combo.addItem(asic.model)
 
+        def update_hydro_models(self, event=None):
+            """Update hydro model combo box based on vendor selection."""
+            vendor = self.hydro_vendor_var.get()
+            print(f"Фильтрация моделей по производителю: {vendor}")
+
+            try:
+                if vendor in ["Bitmain", "MicroBT"]:
+                    asics = self.db.list_asics(vendor=vendor)
+                    models = ["Ручной ввод TDP"] + sorted([asic.model for asic in asics])
+                    self.hydro_model_combo['values'] = models
+                    print(f"Отфильтровано {len(asics)} моделей для {vendor}")
+                elif vendor == "Другой":
+                    self.hydro_model_combo['values'] = ["Ручной ввод TDP"]
+                else:
+                    # Show all models if no vendor selected
+                    all_asics = self.db.list_asics()
+                    all_models = ["Ручной ввод TDP"] + sorted([asic.model for asic in all_asics])
+                    self.hydro_model_combo['values'] = all_models
+                    print(f"Показаны все {len(all_asics)} модели")
+
+                self.hydro_model_combo.set("")
+            except Exception as e:
+                print(f"Ошибка при фильтрации моделей: {e}")
+                self.hydro_model_combo['values'] = ["Ручной ввод TDP"]
+
+        def update_hydro_tdp(self, event=None):
+            """Update TDP when model is selected."""
+            vendor = self.hydro_vendor_var.get()
+            model = self.hydro_model_var.get()
+
+            if model and model != "Ручной ввод TDP":
+                try:
+                    asic = self.db.get_asic(vendor, model)
+                    if asic:
+                        # Используем среднее значение TDP для более точного расчета
+                        tdp_min = asic.tdp_w_min or asic.tdp_w_max or 100
+                        tdp_max = asic.tdp_w_max or asic.tdp_w_min or 100
+                        tdp_avg = (tdp_min + tdp_max) / 2
+                        self.hydro_tdp_var.set(str(int(tdp_avg)))
+                        # Автоматически рассчитать общий TDP
+                        self.update_total_tdp()
+                        print(f"✅ Выбрана модель {model}, TDP: {int(tdp_avg)}W на ASIC")
+                except Exception as e:
+                    print(f"❌ Ошибка при получении данных ASIC: {e}")
+                    self.hydro_tdp_var.set("")
+                    self.hydro_total_tdp_var.set("0 Вт")
+            elif model == "Ручной ввод TDP":
+                self.hydro_tdp_var.set("")
+                self.hydro_total_tdp_var.set("0 Вт")
+                print("ℹ️ Выбран ручной ввод TDP")
+
+        def update_total_tdp(self):
+            """Calculate and display total TDP when quantity changes."""
+            try:
+                tdp_str = self.hydro_tdp_var.get().strip()
+                quantity_str = self.hydro_quantity_var.get().strip()
+
+                if tdp_str and quantity_str:
+                    tdp_per_unit = float(tdp_str)
+                    quantity = int(quantity_str)
+                    total_tdp = tdp_per_unit * quantity
+                    self.hydro_total_tdp_var.set(f"{total_tdp:.0f} Вт")
+                    print(f"📊 Общий TDP рассчитан: {quantity} × {tdp_per_unit}W = {total_tdp:.0f}W")
+                else:
+                    self.hydro_total_tdp_var.set("0 Вт")
+            except Exception as e:
+                print(f"❌ Ошибка расчета TDP: {e}")
+                self.hydro_total_tdp_var.set("0 Вт")
+
+        def update_total_tdp_from_tdp_change(self):
+            """Calculate and display total TDP when TDP per unit changes."""
+            # Avoid infinite recursion by checking if we're already updating
+            try:
+                tdp_str = self.hydro_tdp_var.get().strip()
+                quantity_str = self.hydro_quantity_var.get().strip()
+
+                if tdp_str and quantity_str:
+                    tdp_per_unit = float(tdp_str)
+                    quantity = int(quantity_str)
+                    total_tdp = tdp_per_unit * quantity
+                    self.hydro_total_tdp_var.set(f"{total_tdp:.0f} Вт")
+                    print(f"🔄 TDP на ASIC изменен на {tdp_per_unit}W, общий TDP: {total_tdp:.0f}W")
+            except:
+                pass  # Silent fail for TDP changes
+
+        def update_air_models(self, event=None):
+            """Update air model combo box based on vendor selection."""
+            vendor = self.air_vendor_var.get()
+            print(f"Фильтрация воздушных моделей по производителю: {vendor}")
+
+            try:
+                if vendor in ["Bitmain", "MicroBT"]:
+                    asics = self.db.list_asics(vendor=vendor)
+                    models = ["Ручной ввод TDP"] + sorted([asic.model for asic in asics])
+                    self.air_model_combo['values'] = models
+                    print(f"Отфильтровано {len(asics)} воздушных моделей для {vendor}")
+                elif vendor == "Другой":
+                    self.air_model_combo['values'] = ["Ручной ввод TDP"]
+                else:
+                    # Show all models if no vendor selected
+                    all_asics = self.db.list_asics()
+                    all_models = ["Ручной ввод TDP"] + sorted([asic.model for asic in all_asics])
+                    self.air_model_combo['values'] = all_models
+                    print(f"Показаны все {len(all_asics)} воздушные модели")
+
+                self.air_model_combo.set("")
+            except Exception as e:
+                print(f"Ошибка при фильтрации воздушных моделей: {e}")
+                self.air_model_combo['values'] = ["Ручной ввод TDP"]
+
+        def update_air_tdp(self, event=None):
+            """Update TDP when model is selected."""
+            vendor = self.air_vendor_var.get()
+            model = self.air_model_var.get()
+
+            if model and model != "Ручной ввод TDP":
+                try:
+                    asic = self.db.get_asic(vendor, model)
+                    if asic:
+                        # Используем среднее значение TDP для более точного расчета
+                        tdp_min = asic.tdp_w_min or asic.tdp_w_max or 100
+                        tdp_max = asic.tdp_w_max or asic.tdp_w_min or 100
+                        tdp_avg = (tdp_min + tdp_max) / 2
+                        self.air_tdp_var.set(str(int(tdp_avg)))
+                        # Автоматически рассчитать общий TDP
+                        self.update_total_air_tdp()
+                        print(f"✅ Выбрана модель {model} для воздушного охлаждения, TDP: {int(tdp_avg)}W на ASIC")
+                except Exception as e:
+                    print(f"❌ Ошибка при получении данных ASIC: {e}")
+                    self.air_tdp_var.set("")
+                    self.air_total_tdp_var.set("0 Вт")
+            elif model == "Ручной ввод TDP":
+                self.air_tdp_var.set("")
+                self.air_total_tdp_var.set("0 Вт")
+                print("ℹ️ Выбран ручной ввод TDP для воздушного охлаждения")
+
+        def update_total_air_tdp(self):
+            """Calculate and display total TDP when quantity changes."""
+            try:
+                tdp_str = self.air_tdp_var.get().strip()
+                quantity_str = self.air_quantity_var.get().strip()
+
+                if tdp_str and quantity_str:
+                    tdp_per_unit = float(tdp_str)
+                    quantity = int(quantity_str)
+                    total_tdp = tdp_per_unit * quantity
+                    self.air_total_tdp_var.set(f"{total_tdp:.0f} Вт")
+                    print(f"📊 Общий TDP воздушного охлаждения рассчитан: {quantity} × {tdp_per_unit}W = {total_tdp:.0f}W")
+                else:
+                    self.air_total_tdp_var.set("0 Вт")
+            except Exception as e:
+                print(f"❌ Ошибка расчета TDP воздушного охлаждения: {e}")
+                self.air_total_tdp_var.set("0 Вт")
+
+        def update_total_air_tdp_from_tdp_change(self):
+            """Calculate and display total TDP when TDP per unit changes."""
+            try:
+                tdp_str = self.air_tdp_var.get().strip()
+                quantity_str = self.air_quantity_var.get().strip()
+
+                if tdp_str and quantity_str:
+                    tdp_per_unit = float(tdp_str)
+                    quantity = int(quantity_str)
+                    total_tdp = tdp_per_unit * quantity
+                    self.air_total_tdp_var.set(f"{total_tdp:.0f} Вт")
+                    print(f"🔄 TDP на ASIC воздушного охлаждения изменен на {tdp_per_unit}W, общий TDP: {total_tdp:.0f}W")
+            except:
+                pass  # Silent fail for TDP changes
+
+        def initialize_combos(self):
+            """Initialize combo boxes after data loading."""
+            try:
+                # Initialize hydro combos
+                self.hydro_vendor_combo.set("")
+                self.hydro_model_combo['values'] = ["Ручной ввод TDP"]
+
+                # Initialize air combos
+                self.air_vendor_combo.set("")
+                self.air_model_combo['values'] = ["Ручной ввод TDP"]
+
+                print("Выпадающие списки инициализированы")
+            except Exception as e:
+                print(f"Ошибка инициализации: {e}")
+
+        def select_pump(self, required_flow_lpm):
+            """Select appropriate pump based on required flow."""
+            try:
+                # Simple pump selection logic
+                if required_flow_lpm <= 20:
+                    return {
+                        'name': 'Alphacool DC-LT 50/60',
+                        'power': 12,
+                        'head': 2.8,
+                        'price': 80
+                    }
+                elif required_flow_lpm <= 50:
+                    return {
+                        'name': 'EKWB D5 Vario',
+                        'power': 23,
+                        'head': 4.0,
+                        'price': 120
+                    }
+                elif required_flow_lpm <= 100:
+                    return {
+                        'name': 'EKWB DDC 3.2',
+                        'power': 25,
+                        'head': 5.2,
+                        'price': 130
+                    }
+                else:
+                    return {
+                        'name': 'Swiftech MCP35X',
+                        'power': 35,
+                        'head': 5.0,
+                        'price': 160
+                    }
+            except:
+                return {
+                    'name': 'Alphacool DC-LT 50/60',
+                    'power': 12,
+                    'head': 2.8,
+                    'price': 80
+                }
+
+        def select_fans(self, required_airflow_m3_h):
+            """Select appropriate fans based on required airflow."""
+            try:
+                # Convert m3/h to CFM for fan selection
+                required_cfm = required_airflow_m3_h / 1.699
+
+                # More realistic fan selection for mining applications
+                if required_cfm <= 500:
+                    # Small fans for low airflow
+                    cfm_per_fan = 140
+                    fan_data = {
+                        'model': 'Noctua NF-A14 PWM',
+                        'size': '140mm',
+                        'cfm': cfm_per_fan,
+                        'power': 1.5,
+                        'noise': 24.6,
+                        'price': 30
+                    }
+                elif required_cfm <= 1500:
+                    # Medium fans for medium airflow
+                    cfm_per_fan = 170
+                    fan_data = {
+                        'model': 'Noctua NF-P14s redux-1200 PWM',
+                        'size': '140mm',
+                        'cfm': cfm_per_fan,
+                        'power': 1.2,
+                        'noise': 31.5,
+                        'price': 35
+                    }
+                elif required_cfm <= 4000:
+                    # Large fans for high airflow
+                    cfm_per_fan = 250
+                    fan_data = {
+                        'model': 'be quiet! Silent Wings 3 140mm',
+                        'size': '140mm',
+                        'cfm': cfm_per_fan,
+                        'power': 2.5,
+                        'noise': 35.0,
+                        'price': 45
+                    }
+                else:
+                    # Industrial fans for very high airflow
+                    cfm_per_fan = 400
+                    fan_data = {
+                        'model': 'Noctua NF-A20 PWM',
+                        'size': '200mm',
+                        'cfm': cfm_per_fan,
+                        'power': 3.0,
+                        'noise': 38.0,
+                        'price': 80
+                    }
+
+                # Calculate required quantity with 20% safety margin
+                required_quantity = max(1, int((required_cfm * 1.2) / fan_data['cfm']) + 1)
+
+                return {
+                    'model': fan_data['model'],
+                    'size': fan_data['size'],
+                    'cfm': fan_data['cfm'],
+                    'power': fan_data['power'],
+                    'noise': fan_data['noise'],
+                    'price': fan_data['price'],
+                    'quantity': required_quantity
+                }
+
+            except Exception as e:
+                print(f"Ошибка подбора вентиляторов: {e}")
+                return {
+                    'model': 'Noctua NF-A14 PWM',
+                    'size': '140mm',
+                    'cfm': 140,
+                    'power': 1.5,
+                    'noise': 24.6,
+                    'price': 30,
+                    'quantity': max(4, int(required_airflow_m3_h / 240) + 2)
+                }
+
         def calculate_hydro(self):
             """Calculate hydro cooling system."""
             try:
-                tdp = self.tdp_input.value()
-                theta = self.theta_input.value()
-                t_in = self.coolant_temp_input.value()
+                # Get TDP per unit and quantity
+                tdp_str = self.hydro_tdp_var.get().strip()
+                if not tdp_str:
+                    raise ValueError("TDP не указан. Выберите модель ASIC или введите TDP вручную.")
 
-                # Calculate flow requirements
+                tdp_per_unit = float(tdp_str)
+                if tdp_per_unit <= 0:
+                    raise ValueError("TDP должен быть положительным числом.")
+
+                quantity_str = self.hydro_quantity_var.get().strip()
+                if not quantity_str:
+                    raise ValueError("Количество ASIC не указано.")
+
+                quantity = int(quantity_str)
+                if quantity <= 0:
+                    raise ValueError("Количество ASIC должно быть положительным числом.")
+
+                total_tdp = tdp_per_unit * quantity
+
+                t_in = float(self.coolant_temp_var.get() or "25")
+
+                # Calculate flow requirements (per ASIC, then total)
                 props = coolant_properties("water", 0, t_in)
-                m_dot = mass_flow_for_heat(tdp, props["cp"], 5.0)  # 5°C rise
-                flow_lpm = volumetric_flow_lpm(m_dot, props["rho"])
-                t_chip = compute_chip_temperature(tdp, t_in, theta)
+                m_dot_per_unit = mass_flow_for_heat(tdp_per_unit, props["cp"], 5.0)
+                flow_lpm_per_unit = volumetric_flow_lpm(m_dot_per_unit, props["rho"])
+                total_flow_lpm = flow_lpm_per_unit * quantity
 
-                # Radiator sizing
-                UA = required_UA_for_Q(tdp, t_in + 5, 30, m_dot * props["cp"], tdp / (1005.0 * 10) * 1005.0)
+                # For temperature calculation, use conservative approach
+                t_chip = compute_chip_temperature(tdp_per_unit, t_in, 0.02)  # Conservative thermal resistance
 
-                # Select radiator
-                radiator_catalog = get_radiator_catalog()
-                selected_radiator, margin = select_radiator_from_catalog(
-                    UA, radiator_catalog, tdp / (1005.0 * 10), flow_lpm
-                )
+                # Select radiator based on total TDP
+                try:
+                    radiator_catalog = get_radiator_catalog()
+                    # Select radiator based on total TDP (larger radiator for more heat)
+                    if total_tdp <= 500:
+                        selected_radiator = radiator_catalog[0]  # Small radiator
+                    elif total_tdp <= 1500:
+                        selected_radiator = radiator_catalog[1]  # Medium radiator
+                    else:
+                        selected_radiator = radiator_catalog[2]  # Large radiator
+
+                    radiator_name = selected_radiator.name
+                    radiator_price = selected_radiator.price_usd
+                    radiator_area = selected_radiator.face_area_m2
+                    radiator_volume = selected_radiator.core_volume_l
+                    radiator_tubes = selected_radiator.tube_count
+                except:
+                    radiator_name = "Alphacool NexXxoS XT45"
+                    radiator_price = 85.0
+                    radiator_area = 0.024
+                    radiator_volume = 0.15
+                    radiator_tubes = 11
+
+                # Pump selection based on flow requirements
+                pump_specs = self.select_pump(total_flow_lpm)
 
                 results = f"""
-=== HYDRO COOLING CALCULATION ===
+=== РАСЧЕТ СИСТЕМЫ ЖИДКОСТНОГО ОХЛАЖДЕНИЯ ===
 
-ASIC Parameters:
-- TDP: {tdp:.0f} W
-- Thermal Resistance: {theta:.3f} °C/W
-- Coolant Inlet: {t_in:.1f} °C
+Конфигурация ASIC:
+- Модель: {self.hydro_model_var.get() or 'Ручной ввод'}
+- TDP на 1 ASIC: {tdp_per_unit:.0f} Вт
+- Количество: {quantity} шт
+- Общая мощность: {total_tdp:.0f} Вт
 
-Flow Requirements:
-- Required Flow: {flow_lpm:.2f} L/min
-- Predicted Chip Temperature: {t_chip:.1f} °C
+Требования к охлаждению:
+- Расход на 1 ASIC: {flow_lpm_per_unit:.2f} л/мин
+- Общий расход: {total_flow_lpm:.2f} л/мин
+- Температура чипа: ~{t_chip:.1f} °C
 
-Radiator System:
-- Required UA: {UA:.0f} W/K
-- Recommended: {selected_radiator.name}
-- Price: ${selected_radiator.price_usd:.0f}
-- Performance Margin: {margin:.1%}
+РЕКОМЕНДУЕМЫЙ РАДИАТОР:
+- Модель: {radiator_name}
+- Площадь поверхности: {radiator_area:.3f} м²
+- Объем ядра: {radiator_volume:.2f} л
+- Количество трубок: {radiator_tubes} шт
+- Цена: ${radiator_price:.0f}
+
+НАСОСНАЯ СТАНЦИЯ:
+- Модель: {pump_specs['name']}
+- Мощность: {pump_specs['power']} Вт
+- Макс. напор: {pump_specs['head']} м
+- Цена: ${pump_specs['price']:.0f}
 """
                 self.hydro_results.setText(results)
                 self.statusBar().showMessage("Расчет гидроохлаждения завершен")
@@ -528,28 +876,57 @@ else:
 
         def create_hydro_tab(self, parent):
             """Create hydro cooling tab."""
-            # Input section
-            input_frame = ttk.LabelFrame(parent, text="Входные Параметры")
-            input_frame.pack(fill='x', padx=10, pady=5)
+            # ASIC Selection section
+            asic_frame = ttk.LabelFrame(parent, text="Выбор ASIC")
+            asic_frame.pack(fill='x', padx=10, pady=5)
 
-            # TDP input
-            ttk.Label(input_frame, text="Мощность TDP (Вт):").grid(row=0, column=0, sticky='w')
-            self.tdp_var = tk.StringVar(value="100")
-            ttk.Entry(input_frame, textvariable=self.tdp_var).grid(row=0, column=1)
+            # Vendor selection
+            ttk.Label(asic_frame, text="Производитель:").grid(row=0, column=0, sticky='w')
+            self.hydro_vendor_var = tk.StringVar()
+            self.hydro_vendor_combo = ttk.Combobox(asic_frame, textvariable=self.hydro_vendor_var,
+                                                 values=["Bitmain", "MicroBT", "Другой"])
+            self.hydro_vendor_combo.grid(row=0, column=1, padx=5, pady=2)
+            self.hydro_vendor_combo.bind('<<ComboboxSelected>>', self.update_hydro_models)
 
-            # Thermal resistance
-            ttk.Label(input_frame, text="Термическое сопротивление (°C/Вт):").grid(row=1, column=0, sticky='w')
-            self.theta_var = tk.StringVar(value="0.02")
-            ttk.Entry(input_frame, textvariable=self.theta_var).grid(row=1, column=1)
+            # Model selection
+            ttk.Label(asic_frame, text="Модель ASIC:").grid(row=1, column=0, sticky='w')
+            self.hydro_model_var = tk.StringVar()
+            self.hydro_model_combo = ttk.Combobox(asic_frame, textvariable=self.hydro_model_var)
+            self.hydro_model_combo.grid(row=1, column=1, padx=5, pady=2)
+            self.hydro_model_combo.bind('<<ComboboxSelected>>', self.update_hydro_tdp)
 
-            # Coolant temperature
-            ttk.Label(input_frame, text="Входная температура (°C):").grid(row=2, column=0, sticky='w')
+            # Quantity
+            ttk.Label(asic_frame, text="Количество ASIC:").grid(row=2, column=0, sticky='w')
+            self.hydro_quantity_var = tk.StringVar(value="1")
+            quantity_entry = ttk.Entry(asic_frame, textvariable=self.hydro_quantity_var)
+            quantity_entry.grid(row=2, column=1, padx=5, pady=2)
+            self.hydro_quantity_var.trace('w', lambda *args: self.update_total_tdp())
+
+            # TDP per ASIC (auto-filled from model selection, but editable)
+            ttk.Label(asic_frame, text="TDP на 1 ASIC (Вт):").grid(row=3, column=0, sticky='w')
+            self.hydro_tdp_var = tk.StringVar(value="")
+            self.hydro_tdp_entry = ttk.Entry(asic_frame, textvariable=self.hydro_tdp_var)
+            self.hydro_tdp_entry.grid(row=3, column=1, padx=5, pady=2)
+            # Update total TDP when TDP per unit changes
+            self.hydro_tdp_var.trace('w', lambda *args: self.update_total_tdp_from_tdp_change())
+
+            # Total TDP display
+            ttk.Label(asic_frame, text="Общая мощность TDP:").grid(row=4, column=0, sticky='w')
+            self.hydro_total_tdp_var = tk.StringVar(value="0 Вт")
+            ttk.Label(asic_frame, textvariable=self.hydro_total_tdp_var,
+                     font=('Arial', 10, 'bold'), foreground='blue').grid(row=4, column=1, sticky='w')
+
+            # Operating conditions
+            conditions_frame = ttk.LabelFrame(parent, text="Условия эксплуатации")
+            conditions_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Label(conditions_frame, text="Входная температура (°C):").grid(row=0, column=0, sticky='w')
             self.coolant_temp_var = tk.StringVar(value="25")
-            ttk.Entry(input_frame, textvariable=self.coolant_temp_var).grid(row=2, column=1)
+            ttk.Entry(conditions_frame, textvariable=self.coolant_temp_var).grid(row=0, column=1, padx=5, pady=2)
 
             # Calculate button
-            ttk.Button(input_frame, text="Рассчитать Систему Жидкостного Охлаждения",
-                      command=self.calculate_hydro_tk).grid(row=3, column=0, columnspan=2, pady=10)
+            ttk.Button(parent, text="Рассчитать Систему Жидкостного Охлаждения",
+                      command=self.calculate_hydro).pack(pady=10)
 
             # Results
             results_frame = ttk.LabelFrame(parent, text="Результаты")
@@ -564,6 +941,46 @@ else:
 
         def create_airflow_tab(self, parent):
             """Create airflow tab."""
+            # ASIC Selection section
+            asic_frame = ttk.LabelFrame(parent, text="Выбор ASIC")
+            asic_frame.pack(fill='x', padx=10, pady=5)
+
+            # Vendor selection
+            ttk.Label(asic_frame, text="Производитель:").grid(row=0, column=0, sticky='w')
+            self.air_vendor_var = tk.StringVar()
+            self.air_vendor_combo = ttk.Combobox(asic_frame, textvariable=self.air_vendor_var,
+                                                values=["Bitmain", "MicroBT", "Другой"])
+            self.air_vendor_combo.grid(row=0, column=1, padx=5, pady=2)
+            self.air_vendor_combo.bind('<<ComboboxSelected>>', self.update_air_models)
+
+            # Model selection
+            ttk.Label(asic_frame, text="Модель ASIC:").grid(row=1, column=0, sticky='w')
+            self.air_model_var = tk.StringVar()
+            self.air_model_combo = ttk.Combobox(asic_frame, textvariable=self.air_model_var)
+            self.air_model_combo.grid(row=1, column=1, padx=5, pady=2)
+            self.air_model_combo.bind('<<ComboboxSelected>>', self.update_air_tdp)
+
+            # Quantity
+            ttk.Label(asic_frame, text="Количество ASIC:").grid(row=2, column=0, sticky='w')
+            self.air_quantity_var = tk.StringVar(value="1")
+            air_quantity_entry = ttk.Entry(asic_frame, textvariable=self.air_quantity_var)
+            air_quantity_entry.grid(row=2, column=1, padx=5, pady=2)
+            self.air_quantity_var.trace('w', lambda *args: self.update_total_air_tdp())
+
+            # TDP per ASIC (auto-filled from model selection, but editable)
+            ttk.Label(asic_frame, text="TDP на 1 ASIC (Вт):").grid(row=3, column=0, sticky='w')
+            self.air_tdp_var = tk.StringVar(value="")
+            self.air_tdp_entry = ttk.Entry(asic_frame, textvariable=self.air_tdp_var)
+            self.air_tdp_entry.grid(row=3, column=1, padx=5, pady=2)
+            # Update total TDP when TDP per unit changes
+            self.air_tdp_var.trace('w', lambda *args: self.update_total_air_tdp_from_tdp_change())
+
+            # Total TDP display
+            ttk.Label(asic_frame, text="Общая мощность TDP:").grid(row=4, column=0, sticky='w')
+            self.air_total_tdp_var = tk.StringVar(value="0 Вт")
+            ttk.Label(asic_frame, textvariable=self.air_total_tdp_var,
+                     font=('Arial', 10, 'bold'), foreground='blue').grid(row=4, column=1, sticky='w')
+
             # Room configuration
             room_frame = ttk.LabelFrame(parent, text="Конфигурация Помещения")
             room_frame.pack(fill='x', padx=10, pady=5)
@@ -580,12 +997,8 @@ else:
             self.room_height_var = tk.StringVar(value="3")
             ttk.Entry(room_frame, textvariable=self.room_height_var).grid(row=2, column=1)
 
-            ttk.Label(room_frame, text="Общая мощность TDP (Вт):").grid(row=3, column=0, sticky='w')
-            self.total_tdp_var = tk.StringVar(value="3000")
-            ttk.Entry(room_frame, textvariable=self.total_tdp_var).grid(row=3, column=1)
-
-            ttk.Button(room_frame, text="Рассчитать Требования к Вентиляции",
-                      command=self.calculate_airflow_tk).grid(row=4, column=0, columnspan=2, pady=10)
+            ttk.Button(parent, text="Рассчитать Требования к Вентиляции",
+                      command=self.calculate_airflow).pack(pady=10)
 
             # Results
             self.airflow_results_text = tk.Text(parent, wrap=tk.WORD)
@@ -625,92 +1038,201 @@ else:
             price_frame = ttk.Frame(parent)
             price_frame.pack(fill='x', padx=10, pady=5)
 
-            ttk.Label(price_frame, text="Electricity Price ($/kWh):").pack(side='left')
+            ttk.Label(price_frame, text="Цена Электроэнергии ($/кВт·ч):").pack(side='left')
             self.elec_price_var = tk.StringVar(value="0.10")
             ttk.Entry(price_frame, textvariable=self.elec_price_var).pack(side='left')
 
-            ttk.Button(price_frame, text="Compare Scenarios",
-                      command=self.compare_scenarios_tk).pack(side='right')
+            ttk.Button(price_frame, text="Сравнить Сценарии",
+                      command=self.compare_scenarios_gui).pack(side='right')
 
             # Results
             self.comparison_results_text = tk.Text(parent, wrap=tk.WORD)
             self.comparison_results_text.pack(fill='both', expand=True, padx=10, pady=5)
 
-        def calculate_hydro_tk(self):
+        def calculate_hydro(self):
             """Calculate hydro cooling system (Tkinter version)."""
             try:
-                tdp = float(self.tdp_var.get())
-                theta = float(self.theta_var.get())
-                t_in = float(self.coolant_temp_var.get())
+                # Get TDP per unit and quantity from new interface
+                tdp_str = self.hydro_tdp_var.get().strip()
+                if not tdp_str:
+                    raise ValueError("TDP не указан. Выберите модель ASIC или введите TDP вручную.")
 
-                # Calculate flow requirements
+                # Support comma as decimal separator
+                tdp_per_unit = float(tdp_str.replace(',', '.'))
+                if tdp_per_unit <= 0:
+                    raise ValueError("TDP должен быть положительным числом.")
+
+                quantity_str = self.hydro_quantity_var.get().strip()
+                if not quantity_str:
+                    raise ValueError("Количество ASIC не указано.")
+
+                quantity = int(quantity_str)
+                if quantity <= 0:
+                    raise ValueError("Количество ASIC должно быть положительным числом.")
+
+                total_tdp = tdp_per_unit * quantity
+                # Coolant inlet temperature with comma support
+                t_in = float((self.coolant_temp_var.get() or "25").replace(',', '.'))
+
+                # Calculate flow requirements (per ASIC, then total)
                 props = coolant_properties("water", 0, t_in)
-                m_dot = mass_flow_for_heat(tdp, props["cp"], 5.0)
-                flow_lpm = volumetric_flow_lpm(m_dot, props["rho"])
-                t_chip = compute_chip_temperature(tdp, t_in, theta)
+                m_dot_per_unit = mass_flow_for_heat(tdp_per_unit, props["cp"], 5.0)
+                flow_lpm_per_unit = volumetric_flow_lpm(m_dot_per_unit, props["rho"])
+                total_flow_lpm = flow_lpm_per_unit * quantity
 
-                # Radiator sizing
-                UA = required_UA_for_Q(tdp, t_in + 5, 30, m_dot * props["cp"], tdp / (1005.0 * 10) * 1005.0)
+                # For temperature calculation, use conservative approach
+                t_chip = compute_chip_temperature(tdp_per_unit, t_in, 0.02)  # Conservative thermal resistance
+
+                # Select radiator based on total TDP
+                try:
+                    radiator_catalog = get_radiator_catalog()
+                    # Select radiator based on total TDP (larger radiator for more heat)
+                    if total_tdp <= 500:
+                        selected_radiator = radiator_catalog[0]  # Small radiator
+                    elif total_tdp <= 1500:
+                        selected_radiator = radiator_catalog[1]  # Medium radiator
+                    else:
+                        selected_radiator = radiator_catalog[2]  # Large radiator
+
+                    radiator_name = selected_radiator.name
+                    radiator_price = selected_radiator.price_usd
+                    radiator_area = selected_radiator.face_area_m2
+                    radiator_volume = selected_radiator.core_volume_l
+                    radiator_tubes = selected_radiator.tube_count
+                except Exception as e:
+                    print(f"Ошибка подбора радиатора: {e}")
+                    radiator_name = "Alphacool NexXxoS XT45"
+                    radiator_price = 85.0
+                    radiator_area = 0.024
+                    radiator_volume = 0.15
+                    radiator_tubes = 11
+
+                # Pump selection based on flow requirements
+                pump_specs = self.select_pump(total_flow_lpm)
 
                 results = f"""
-=== HYDRO COOLING CALCULATION ===
+=== РАСЧЕТ СИСТЕМЫ ЖИДКОСТНОГО ОХЛАЖДЕНИЯ ===
 
-ASIC Parameters:
-- TDP: {tdp:.0f} W
-- Thermal Resistance: {theta:.3f} °C/W
-- Coolant Inlet: {t_in:.1f} °C
+Конфигурация ASIC:
+- Модель: {self.hydro_model_var.get() or 'Ручной ввод'}
+- TDP на 1 ASIC: {tdp_per_unit:.0f} Вт
+- Количество: {quantity} шт
+- Общая мощность: {total_tdp:.0f} Вт
 
-Flow Requirements:
-- Required Flow: {flow_lpm:.2f} L/min
-- Predicted Chip Temperature: {t_chip:.1f} °C
+Требования к охлаждению:
+- Расход на 1 ASIC: {flow_lpm_per_unit:.2f} л/мин
+- Общий расход: {total_flow_lpm:.2f} л/мин
+- Температура чипа: ~{t_chip:.1f} °C
 
-Radiator System:
-- Required UA: {UA:.0f} W/K
+РЕКОМЕНДУЕМЫЙ РАДИАТОР:
+- Модель: {radiator_name}
+- Площадь поверхности: {radiator_area:.3f} м²
+- Объем ядра: {radiator_volume:.2f} л
+- Количество трубок: {radiator_tubes} шт
+- Цена: ${radiator_price:.0f}
 
-Calculation completed successfully!
+НАСОСНАЯ СТАНЦИЯ:
+- Модель: {pump_specs['name']}
+- Мощность: {pump_specs['power']} Вт
+- Макс. напор: {pump_specs['head']} м
+- Цена: ${pump_specs['price']:.0f}
+
+Расчет завершен успешно!
 """
                 self.hydro_results_text.delete(1.0, tk.END)
                 self.hydro_results_text.insert(tk.END, results)
 
             except Exception as e:
-                messagebox.showerror("Error", f"Calculation failed: {str(e)}")
+                # Print full traceback for diagnostics in console and show user-friendly message
+                traceback.print_exc()
+                messagebox.showerror("Ошибка", f"Расчет не удался: {str(e)}")
 
-        def calculate_airflow_tk(self):
+        def calculate_airflow(self):
             """Calculate airflow requirements (Tkinter version)."""
             try:
+                # Get TDP per unit and quantity
+                tdp_str = self.air_tdp_var.get().strip()
+                if not tdp_str:
+                    raise ValueError("TDP не указан. Выберите модель ASIC или введите TDP вручную.")
+
+                tdp_per_unit = float(tdp_str)
+                if tdp_per_unit <= 0:
+                    raise ValueError("TDP должен быть положительным числом.")
+
+                quantity_str = self.air_quantity_var.get().strip()
+                if not quantity_str:
+                    raise ValueError("Количество ASIC не указано.")
+
+                quantity = int(quantity_str)
+                if quantity <= 0:
+                    raise ValueError("Количество ASIC должно быть положительным числом.")
+
+                total_tdp = tdp_per_unit * quantity
+
                 length = float(self.room_length_var.get())
                 width = float(self.room_width_var.get())
                 height = float(self.room_height_var.get())
-                tdp = float(self.total_tdp_var.get())
 
-                # Calculate required airflow
-                airflow = required_airflow_m3_h(tdp, 25, 35)
+                # Calculate required airflow with mining-specific logic
+                # Basic thermal calculation
+                basic_airflow = required_airflow_m3_h(total_tdp, 25, 35)
                 volume = length * width * height
 
+                # Mining-specific requirements:
+                # 1. Minimum 150 CFM per ASIC for proper cooling
+                min_cfm_per_asic = 150
+                min_airflow_cfm = quantity * min_cfm_per_asic
+                min_airflow_m3h = min_airflow_cfm * 1.699
+
+                # 2. Room air exchange: 8x per hour minimum
+                room_exchange_m3h = volume * 8
+
+                # Use the maximum of all requirements
+                airflow = max(basic_airflow, min_airflow_m3h, room_exchange_m3h)
+
+                print(f"Расчет вентиляции: TDP={total_tdp}W, базовый={basic_airflow:.0f}m³/h, мин.на ASIC={min_airflow_m3h:.0f}m³/h, помещение={room_exchange_m3h:.0f}m³/h → итого={airflow:.0f}m³/h")
+
+                # Select fans based on airflow requirements
+                fan_specs = self.select_fans(airflow)
+
                 results = f"""
-=== AIRFLOW CALCULATION ===
+=== РАСЧЕТ ТРЕБОВАНИЙ К ВЕНТИЛЯЦИИ ===
 
-Room Configuration:
-- Dimensions: {length:.1f} × {width:.1f} × {height:.1f} m
-- Volume: {volume:.1f} m³
+Конфигурация ASIC:
+- Модель: {self.air_model_var.get() or 'Ручной ввод'}
+- TDP на 1 ASIC: {tdp_per_unit:.0f} Вт
+- Количество: {quantity} шт
+- Общая мощность: {total_tdp:.0f} Вт
 
-ASIC Load:
-- Total TDP: {tdp:.0f} W
+Конфигурация помещения:
+- Размеры: {length:.1f} × {width:.1f} × {height:.1f} м
+- Объем: {volume:.1f} м³
 
-Airflow Requirements:
-- Required Airflow: {airflow:.0f} m³/h
-- Required Airflow: {airflow * 0.588:.0f} CFM
-- Air Changes per Hour: {airflow / volume:.1f}
+Требования к вентиляции:
+- Необходимый воздухообмен: {airflow:.0f} м³/ч
+- Необходимый воздухообмен: {airflow * 0.588:.0f} CFM
+- Кратность воздухообмена: {airflow / volume:.1f} 1/ч
 
-Calculation completed successfully!
+РЕКОМЕНДУЕМЫЕ ВЕНТИЛЯТОРЫ:
+- Модель: {fan_specs['model']}
+- Размер: {fan_specs['size']}
+- Производительность: {fan_specs['cfm']:.0f} CFM ({fan_specs['cfm'] * 1.699:.0f} м³/ч)
+- Мощность на 1 вентилятор: {fan_specs['power']:.1f} Вт
+- Уровень шума: {fan_specs['noise']:.1f} дБ
+- Цена за 1 вентилятор: ${fan_specs['price']:.0f}
+- Рекомендуемое количество: {fan_specs['quantity']} шт
+- Общая стоимость вентиляторов: ${fan_specs['price'] * fan_specs['quantity']:.0f}
+- Общая мощность вентиляторов: {fan_specs['power'] * fan_specs['quantity']:.1f} Вт
+
+Расчет завершен успешно!
 """
                 self.airflow_results_text.delete(1.0, tk.END)
                 self.airflow_results_text.insert(tk.END, results)
 
             except Exception as e:
-                messagebox.showerror("Error", f"Calculation failed: {str(e)}")
+                messagebox.showerror("Ошибка", f"Расчет не удался: {str(e)}")
 
-        def compare_scenarios_tk(self):
+        def compare_scenarios_gui(self):
             """Compare cooling scenarios (Tkinter version)."""
             try:
                 air_capex = float(self.air_capex_var.get())
@@ -730,40 +1252,357 @@ Calculation completed successfully!
                 payback_days = hydro_capex / delta_profit if delta_profit > 0 else float('inf')
 
                 results = f"""
-=== SCENARIO COMPARISON ===
+=== СРАВНЕНИЕ СЦЕНАРИЕВ ===
 
-Air Cooling:
+Воздушное охлаждение:
 - CAPEX: ${air_capex:.0f}
-- Daily Power Cost: ${air_daily_cost:.2f}
-- Daily Profit: ${air_daily_profit:.2f}
+- Суточные затраты на электроэнергию: ${air_daily_cost:.2f}
+- Суточная прибыль: ${air_daily_profit:.2f}
 
-Hydro Cooling:
+Жидкостное охлаждение:
 - CAPEX: ${hydro_capex:.0f}
-- Daily Power Cost: ${hydro_daily_cost:.2f}
-- Daily Profit: ${hydro_daily_profit:.2f}
+- Суточные затраты на электроэнергию: ${hydro_daily_cost:.2f}
+- Суточная прибыль: ${hydro_daily_profit:.2f}
 
-Comparison:
-- Daily Profit Difference: ${delta_profit:.2f}
-- Payback Period: {payback_days:.0f} days
+Сравнение:
+- Разница в суточной прибыли: ${delta_profit:.2f}
+- Срок окупаемости: {payback_days:.0f} дней
 
-Calculation completed successfully!
+Расчет завершен успешно!
 """
                 self.comparison_results_text.delete(1.0, tk.END)
                 self.comparison_results_text.insert(tk.END, results)
 
             except Exception as e:
-                messagebox.showerror("Error", f"Comparison failed: {str(e)}")
+                messagebox.showerror("Ошибка", f"Сравнение не удалось: {str(e)}")
 
         def load_sample_data(self):
             """Load sample ASIC data."""
             try:
                 n = self.db.import_csv("coredb/sample_data/asic_coredb.csv")
                 print(f"Loaded {n} ASIC models")
+
+                # Initialize combo boxes after loading data
+                self.initialize_combos()
             except Exception as e:
                 print(f"Could not load sample data: {e}")
 
+        def update_hydro_models(self, event=None):
+            """Update hydro model combo box based on vendor selection."""
+            vendor = self.hydro_vendor_var.get()
+            print(f"Фильтрация моделей по производителю: {vendor}")
+
+            try:
+                if vendor in ["Bitmain", "MicroBT"]:
+                    asics = self.db.list_asics(vendor=vendor)
+                    models = ["Ручной ввод TDP"] + sorted([asic.model for asic in asics])
+                    self.hydro_model_combo['values'] = models
+                    print(f"Отфильтровано {len(asics)} моделей для {vendor}")
+                elif vendor == "Другой":
+                    self.hydro_model_combo['values'] = ["Ручной ввод TDP"]
+                else:
+                    # Show all models if no vendor selected
+                    all_asics = self.db.list_asics()
+                    all_models = ["Ручной ввод TDP"] + sorted([asic.model for asic in all_asics])
+                    self.hydro_model_combo['values'] = all_models
+                    print(f"Показаны все {len(all_asics)} модели")
+
+                self.hydro_model_combo.set("")
+            except Exception as e:
+                print(f"Ошибка при фильтрации моделей: {e}")
+                self.hydro_model_combo['values'] = ["Ручной ввод TDP"]
+
+        def update_hydro_tdp(self, event=None):
+            """Update TDP when model is selected."""
+            vendor = self.hydro_vendor_var.get()
+            model = self.hydro_model_var.get()
+
+            if model and model != "Ручной ввод TDP":
+                try:
+                    asic = self.db.get_asic(vendor, model)
+                    if asic:
+                        # Используем среднее значение TDP для более точного расчета
+                        tdp_min = asic.tdp_w_min or asic.tdp_w_max or 100
+                        tdp_max = asic.tdp_w_max or asic.tdp_w_min or 100
+                        tdp_avg = (tdp_min + tdp_max) / 2
+                        self.hydro_tdp_var.set(str(int(tdp_avg)))
+                        # Автоматически рассчитать общий TDP
+                        self.update_total_tdp()
+                        print(f"✅ Выбрана модель {model}, TDP: {int(tdp_avg)}W на ASIC")
+                except Exception as e:
+                    print(f"❌ Ошибка при получении данных ASIC: {e}")
+                    self.hydro_tdp_var.set("")
+                    self.hydro_total_tdp_var.set("0 Вт")
+            elif model == "Ручной ввод TDP":
+                self.hydro_tdp_var.set("")
+                self.hydro_total_tdp_var.set("0 Вт")
+                print("ℹ️ Выбран ручной ввод TDP")
+
+        def update_total_tdp(self):
+            """Calculate and display total TDP when quantity changes."""
+            try:
+                tdp_str = self.hydro_tdp_var.get().strip()
+                quantity_str = self.hydro_quantity_var.get().strip()
+
+                if tdp_str and quantity_str:
+                    tdp_per_unit = float(tdp_str)
+                    quantity = int(quantity_str)
+                    total_tdp = tdp_per_unit * quantity
+                    self.hydro_total_tdp_var.set(f"{total_tdp:.0f} Вт")
+                    print(f"📊 Общий TDP рассчитан: {quantity} × {tdp_per_unit}W = {total_tdp:.0f}W")
+                else:
+                    self.hydro_total_tdp_var.set("0 Вт")
+            except Exception as e:
+                print(f"❌ Ошибка расчета TDP: {e}")
+                self.hydro_total_tdp_var.set("0 Вт")
+
+        def update_total_tdp_from_tdp_change(self):
+            """Calculate and display total TDP when TDP per unit changes."""
+            # Avoid infinite recursion by checking if we're already updating
+            try:
+                tdp_str = self.hydro_tdp_var.get().strip()
+                quantity_str = self.hydro_quantity_var.get().strip()
+
+                if tdp_str and quantity_str:
+                    tdp_per_unit = float(tdp_str)
+                    quantity = int(quantity_str)
+                    total_tdp = tdp_per_unit * quantity
+                    self.hydro_total_tdp_var.set(f"{total_tdp:.0f} Вт")
+                    print(f"🔄 TDP на ASIC изменен на {tdp_per_unit}W, общий TDP: {total_tdp:.0f}W")
+            except:
+                pass  # Silent fail for TDP changes
+
+        def update_air_models(self, event=None):
+            """Update air model combo box based on vendor selection."""
+            vendor = self.air_vendor_var.get()
+            print(f"Фильтрация воздушных моделей по производителю: {vendor}")
+
+            try:
+                if vendor in ["Bitmain", "MicroBT"]:
+                    asics = self.db.list_asics(vendor=vendor)
+                    models = ["Ручной ввод TDP"] + sorted([asic.model for asic in asics])
+                    self.air_model_combo['values'] = models
+                    print(f"Отфильтровано {len(asics)} воздушных моделей для {vendor}")
+                elif vendor == "Другой":
+                    self.air_model_combo['values'] = ["Ручной ввод TDP"]
+                else:
+                    # Show all models if no vendor selected
+                    all_asics = self.db.list_asics()
+                    all_models = ["Ручной ввод TDP"] + sorted([asic.model for asic in all_asics])
+                    self.air_model_combo['values'] = all_models
+                    print(f"Показаны все {len(all_asics)} воздушные модели")
+
+                self.air_model_combo.set("")
+            except Exception as e:
+                print(f"Ошибка при фильтрации воздушных моделей: {e}")
+                self.air_model_combo['values'] = ["Ручной ввод TDP"]
+
+        def update_air_tdp(self, event=None):
+            """Update TDP when model is selected."""
+            vendor = self.air_vendor_var.get()
+            model = self.air_model_var.get()
+
+            if model and model != "Ручной ввод TDP":
+                try:
+                    asic = self.db.get_asic(vendor, model)
+                    if asic:
+                        # Используем среднее значение TDP для более точного расчета
+                        tdp_min = asic.tdp_w_min or asic.tdp_w_max or 100
+                        tdp_max = asic.tdp_w_max or asic.tdp_w_min or 100
+                        tdp_avg = (tdp_min + tdp_max) / 2
+                        self.air_tdp_var.set(str(int(tdp_avg)))
+                        # Автоматически рассчитать общий TDP
+                        self.update_total_air_tdp()
+                        print(f"✅ Выбрана модель {model} для воздушного охлаждения, TDP: {int(tdp_avg)}W на ASIC")
+                except Exception as e:
+                    print(f"❌ Ошибка при получении данных ASIC: {e}")
+                    self.air_tdp_var.set("")
+                    self.air_total_tdp_var.set("0 Вт")
+            elif model == "Ручной ввод TDP":
+                self.air_tdp_var.set("")
+                self.air_total_tdp_var.set("0 Вт")
+                print("ℹ️ Выбран ручной ввод TDP для воздушного охлаждения")
+
+        def update_total_air_tdp(self):
+            """Calculate and display total TDP when quantity changes."""
+            try:
+                tdp_str = self.air_tdp_var.get().strip()
+                quantity_str = self.air_quantity_var.get().strip()
+
+                if tdp_str and quantity_str:
+                    tdp_per_unit = float(tdp_str)
+                    quantity = int(quantity_str)
+                    total_tdp = tdp_per_unit * quantity
+                    self.air_total_tdp_var.set(f"{total_tdp:.0f} Вт")
+                    print(f"📊 Общий TDP воздушного охлаждения рассчитан: {quantity} × {tdp_per_unit}W = {total_tdp:.0f}W")
+                else:
+                    self.air_total_tdp_var.set("0 Вт")
+            except Exception as e:
+                print(f"❌ Ошибка расчета TDP воздушного охлаждения: {e}")
+                self.air_total_tdp_var.set("0 Вт")
+
+        def update_total_air_tdp_from_tdp_change(self):
+            """Calculate and display total TDP when TDP per unit changes."""
+            try:
+                tdp_str = self.air_tdp_var.get().strip()
+                quantity_str = self.air_quantity_var.get().strip()
+
+                if tdp_str and quantity_str:
+                    tdp_per_unit = float(tdp_str)
+                    quantity = int(quantity_str)
+                    total_tdp = tdp_per_unit * quantity
+                    self.air_total_tdp_var.set(f"{total_tdp:.0f} Вт")
+                    print(f"🔄 TDP на ASIC воздушного охлаждения изменен на {tdp_per_unit}W, общий TDP: {total_tdp:.0f}W")
+            except:
+                pass  # Silent fail for TDP changes
+
+        def select_pump(self, required_flow_lpm):
+            """Select appropriate pump based on required flow."""
+            try:
+                # Simple pump selection logic
+                if required_flow_lpm <= 20:
+                    return {
+                        'name': 'Alphacool DC-LT 50/60',
+                        'power': 12,
+                        'head': 2.8,
+                        'price': 80
+                    }
+                elif required_flow_lpm <= 50:
+                    return {
+                        'name': 'EKWB D5 Vario',
+                        'power': 23,
+                        'head': 4.0,
+                        'price': 120
+                    }
+                elif required_flow_lpm <= 100:
+                    return {
+                        'name': 'EKWB DDC 3.2',
+                        'power': 25,
+                        'head': 5.2,
+                        'price': 130
+                    }
+                else:
+                    return {
+                        'name': 'Swiftech MCP35X',
+                        'power': 35,
+                        'head': 5.0,
+                        'price': 160
+                    }
+            except:
+                return {
+                    'name': 'Alphacool DC-LT 50/60',
+                    'power': 12,
+                    'head': 2.8,
+                    'price': 80
+                }
+
+        def select_fans(self, required_airflow_m3_h):
+            """Select appropriate fans based on required airflow."""
+            try:
+                # Convert m3/h to CFM for fan selection
+                required_cfm = required_airflow_m3_h / 1.699
+
+                # More realistic fan selection for mining applications
+                if required_cfm <= 500:
+                    # Small fans for low airflow
+                    cfm_per_fan = 140
+                    fan_data = {
+                        'model': 'Noctua NF-A14 PWM',
+                        'size': '140mm',
+                        'cfm': cfm_per_fan,
+                        'power': 1.5,
+                        'noise': 24.6,
+                        'price': 30
+                    }
+                elif required_cfm <= 1500:
+                    # Medium fans for medium airflow
+                    cfm_per_fan = 170
+                    fan_data = {
+                        'model': 'Noctua NF-P14s redux-1200 PWM',
+                        'size': '140mm',
+                        'cfm': cfm_per_fan,
+                        'power': 1.2,
+                        'noise': 31.5,
+                        'price': 35
+                    }
+                elif required_cfm <= 4000:
+                    # Large fans for high airflow
+                    cfm_per_fan = 250
+                    fan_data = {
+                        'model': 'be quiet! Silent Wings 3 140mm',
+                        'size': '140mm',
+                        'cfm': cfm_per_fan,
+                        'power': 2.5,
+                        'noise': 35.0,
+                        'price': 45
+                    }
+                else:
+                    # Industrial fans for very high airflow
+                    cfm_per_fan = 400
+                    fan_data = {
+                        'model': 'Noctua NF-A20 PWM',
+                        'size': '200mm',
+                        'cfm': cfm_per_fan,
+                        'power': 3.0,
+                        'noise': 38.0,
+                        'price': 80
+                    }
+
+                # Calculate required quantity with 20% safety margin
+                required_quantity = max(1, int((required_cfm * 1.2) / fan_data['cfm']) + 1)
+
+                return {
+                    'model': fan_data['model'],
+                    'size': fan_data['size'],
+                    'cfm': fan_data['cfm'],
+                    'power': fan_data['power'],
+                    'noise': fan_data['noise'],
+                    'price': fan_data['price'],
+                    'quantity': required_quantity
+                }
+
+            except Exception as e:
+                print(f"Ошибка подбора вентиляторов: {e}")
+                return {
+                    'model': 'Noctua NF-A14 PWM',
+                    'size': '140mm',
+                    'cfm': 140,
+                    'power': 1.5,
+                    'noise': 24.6,
+                    'price': 30,
+                    'quantity': max(4, int(required_airflow_m3_h / 240) + 2)
+                }
+
+        def initialize_combos(self):
+            """Initialize combo boxes after data loading."""
+            try:
+                # Initialize hydro combos
+                self.hydro_vendor_combo.set("")
+                # Get all ASIC models and create a combined list
+                all_asics = self.db.list_asics()
+                all_models = ["Ручной ввод TDP"] + sorted([asic.model for asic in all_asics])
+                self.hydro_model_combo['values'] = all_models
+
+                # Initialize air combos
+                self.air_vendor_combo.set("")
+                self.air_model_combo['values'] = all_models
+
+                print(f"Выпадающие списки инициализированы. Загружено {len(all_asics)} моделей ASIC")
+            except Exception as e:
+                print(f"Ошибка инициализации: {e}")
+                # Fallback initialization
+                self.hydro_vendor_combo.set("")
+                self.hydro_model_combo['values'] = ["Ручной ввод TDP"]
+                self.air_vendor_combo.set("")
+                self.air_model_combo['values'] = ["Ручной ввод TDP"]
+
         def run(self):
             """Run the application."""
+            # Ensure combos are initialized
+            try:
+                self.initialize_combos()
+            except:
+                pass
             self.root.mainloop()
 
 
