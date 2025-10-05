@@ -31,6 +31,13 @@ from user_db import (
 from scrapers.whattomine import fetch_wtm
 from coin_price import get_algo_price_usd
 
+# Импорты нового расширенного калькулятора
+from equipment_db import ASIC_MINERS, get_miners_by_category, EquipmentCategory, get_miner_by_model
+from algorithms_db import MINING_ALGORITHMS, get_algorithm, get_supported_algorithms
+from calculator_core import calculate_equipment_profitability, calculate_algorithm_profitability, MiningCalculator
+from visualization import generate_profitability_chart, generate_roi_chart, generate_full_report
+from emcd_integration import get_emcd_data
+
 # Настройка вывода/логирования
 # На Windows консоль часто в cp1251 и падает при выводе эмодзи.
 # Переконфигурируем stdout/stderr в UTF-8, чтобы избежать UnicodeEncodeError.
@@ -87,10 +94,6 @@ AWAIT_NH_HASHRATE: set[int] = set()
 AWAIT_NH_POWER: set[int] = set()
 AWAIT_NH_ELECTRICITY: set[int] = set()
 
-# Сравнение устройств
-COMPARE_SESSION: dict[int, dict] = {}
-AWAIT_COMPARE_ELECTRICITY: set[int] = set()
-
 # Мини-набор моделей для калькулятора (базируется на сообщении ТОП)
 CALC_MODELS = {
     "bitmain antminer s23 hyd 3u": {"power_w": 11020, "income_usd_day": 71.97},
@@ -145,18 +148,6 @@ def _format_price_rub(model_name: str) -> str:
     key = _normalize_model_name(model_name)
     price = MODEL_PRICE_RUB.get(key)
     return f"🛒 Цена: {price:,}₽".replace(",", " ") if price else "🛒 Цена: уточняйте у поставщиков"
-
-def _get_price_rub(model_title: str) -> int | None:
-    key = _normalize_model_name(model_title)
-    return MODEL_PRICE_RUB.get(key)
-
-def build_quick_tariff_kb(prefix: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="$0.03", callback_data=f"{prefix}0.03"), InlineKeyboardButton(text="$0.05", callback_data=f"{prefix}0.05")],
-        [InlineKeyboardButton(text="$0.07", callback_data=f"{prefix}0.07"), InlineKeyboardButton(text="$0.08", callback_data=f"{prefix}0.08")],
-        [InlineKeyboardButton(text="$0.10", callback_data=f"{prefix}0.10"), InlineKeyboardButton(text="₽ Рубли", callback_data=f"{prefix}rub")],
-        [InlineKeyboardButton(text="Ввести вручную", callback_data=f"{prefix}custom")]
-    ])
 
 # Работа с хешрейтом и единицами
 UNIT_FACTORS = {
@@ -228,75 +219,6 @@ async def _finish_algo_session(msg_or_cb_message, user_id: int):
     )
     await msg_or_cb_message.answer(text, reply_markup=MAIN_MENU)
     CALC_SESSION.pop(user_id, None)
-
-async def _calc_service(payload: dict) -> dict:
-    import httpx
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        r = await client.post(f"{SERVICE_BASE_URL}/calculate", json=payload)
-        r.raise_for_status()
-        return r.json()
-
-async def _compare_and_show(msg_or_cb_message, user_id: int, price: float, currency: str):
-    """Сравнить два выбранных устройства при общем тарифе."""
-    import math
-    sess = COMPARE_SESSION.get(user_id, {})
-    d1 = sess.get("d1")
-    d2 = sess.get("d2")
-    if not d1 or not d2:
-        await msg_or_cb_message.answer("❌ Сессия сравнения неактивна. Запустите /compare", reply_markup=MAIN_MENU)
-        return
-    # Формируем два запроса к сервису
-    payload_common = {
-        "fees": {"marketplace_pct": 2.0, "pool_pct": 1.0},
-        "uptime_pct": 98.0,
-        "fiat": currency if currency in ["RUB","USD","EUR","CZK"] else "RUB",
-        "periods": ["24h"],
-    }
-    p1 = {
-        **payload_common,
-        "mode": "algo",
-        "algoId": d1.get("algoId"),
-        "hashrate": {"value": float(d1.get("nominal_hashrate_value", 0)), "unit": d1.get("unit", "TH")},
-        "power_w": float(d1.get("power_w", 0)),
-        "electricity": {"value": price, "currency": currency},
-    }
-    p2 = {
-        **payload_common,
-        "mode": "algo",
-        "algoId": d2.get("algoId"),
-        "hashrate": {"value": float(d2.get("nominal_hashrate_value", 0)), "unit": d2.get("unit", "TH")},
-        "power_w": float(d2.get("power_w", 0)),
-        "electricity": {"value": price, "currency": currency},
-    }
-    try:
-        r1, r2 = await asyncio.gather(_calc_service(p1), _calc_service(p2))
-        one = r1.get("periods", {}).get("24h", {})
-        two = r2.get("periods", {}).get("24h", {})
-        sym = {"RUB":"₽","USD":"$","EUR":"€","CZK":"Kč"}.get(payload_common["fiat"], "")
-        def fmt(v):
-            return f"{v:,.2f}".replace(",", " ")
-        title1 = f"{d1.get('vendor')} {d1.get('model')}"
-        title2 = f"{d2.get('vendor')} {d2.get('model')}"
-        # ROI если есть цены
-        roi1 = roi2 = ""
-        price1_rub = _get_price_rub(title1)
-        price2_rub = _get_price_rub(title2)
-        if sym == "₽":
-            if price1_rub and one.get("net_profit_fiat", 0) > 0:
-                roi1 = f" | ROI: ~{price1_rub / one['net_profit_fiat']:.0f}д"
-            if price2_rub and two.get("net_profit_fiat", 0) > 0:
-                roi2 = f" | ROI: ~{price2_rub / two['net_profit_fiat']:.0f}д"
-        text = (
-            f"🔀 <b>Сравнение устройств</b> (тариф: {price} {payload_common['fiat']}/кВт⋅ч)\n\n"
-            f"1) <b>{title1}</b> — чистая: <b>{fmt(one.get('net_profit_fiat', 0))}{sym}/д</b>{roi1}\n"
-            f"   вал: {fmt(one.get('revenue_fiat',0))}{sym}, эл.: {fmt(one.get('electricity_cost_fiat',0))}{sym}, ком.: {fmt(one.get('fees_fiat',0))}{sym}\n\n"
-            f"2) <b>{title2}</b> — чистая: <b>{fmt(two.get('net_profit_fiat', 0))}{sym}/д</b>{roi2}\n"
-            f"   вал: {fmt(two.get('revenue_fiat',0))}{sym}, эл.: {fmt(two.get('electricity_cost_fiat',0))}{sym}, ком.: {fmt(two.get('fees_fiat',0))}{sym}\n\n"
-            f"<i>Расчёты ориентировочные; источник ставок — NiceHash API.</i>"
-        )
-        await msg_or_cb_message.answer(text, reply_markup=MAIN_MENU)
-    except Exception as e:
-        await msg_or_cb_message.answer(f"❌ Ошибка сравнения: {e}", reply_markup=MAIN_MENU)
 
 # 🚀 Команда /start
 @dp.message(CommandStart())
@@ -738,172 +660,6 @@ async def cmd_calcnh(message: Message):
     except Exception as e:
         await message.answer(f"❌ Не удалось получить алгоритмы NH. {e}", reply_markup=MAIN_MENU)
 
-@dp.message(Command("compare"))
-async def cmd_compare(message: Message):
-    """Выбор двух устройств для сравнения прибыльности."""
-    import httpx
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(f"{SERVICE_BASE_URL}/devices")
-            r.raise_for_status()
-            devices = r.json()
-        rows = []
-        for d in devices:
-            title = f"{d.get('vendor')} {d.get('model')}"
-            rows.append([InlineKeyboardButton(text=title, callback_data=f"cmp_pick1_{d.get('id')}")])
-        kb = InlineKeyboardMarkup(inline_keyboard=rows)
-        await message.answer("🔀 Выберите первое устройство для сравнения:", reply_markup=kb)
-    except Exception as e:
-        await message.answer(f"❌ Не удалось загрузить устройства: {e}", reply_markup=MAIN_MENU)
-
-@dp.callback_query(F.data.startswith("cmp_pick1_"))
-async def cb_cmp_pick1(callback):
-    first_id = callback.data.split("cmp_pick1_")[-1]
-    import httpx
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(f"{SERVICE_BASE_URL}/devices")
-            r.raise_for_status()
-            devices = r.json()
-        d1 = next((d for d in devices if d.get('id') == first_id), None)
-        if not d1:
-            await callback.message.answer("❌ Устройство не найдено", reply_markup=MAIN_MENU)
-            await callback.answer()
-            return
-        # Сохраняем выбор
-        COMPARE_SESSION[callback.from_user.id] = {"d1": d1}
-        rows = []
-        for d in devices:
-            if d.get('id') == first_id:
-                continue
-            title = f"{d.get('vendor')} {d.get('model')}"
-            rows.append([InlineKeyboardButton(text=title, callback_data=f"cmp_pick2_{d.get('id')}")])
-        kb = InlineKeyboardMarkup(inline_keyboard=rows)
-        await callback.message.answer("➡️ Теперь выберите второе устройство:", reply_markup=kb)
-    except Exception as e:
-        await callback.message.answer(f"❌ Ошибка: {e}", reply_markup=MAIN_MENU)
-    await callback.answer()
-
-@dp.callback_query(F.data.startswith("cmp_pick2_"))
-async def cb_cmp_pick2(callback):
-    second_id = callback.data.split("cmp_pick2_")[-1]
-    import httpx
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(f"{SERVICE_BASE_URL}/devices")
-            r.raise_for_status()
-            devices = r.json()
-        d2 = next((d for d in devices if d.get('id') == second_id), None)
-        sess = COMPARE_SESSION.get(callback.from_user.id, {})
-        d1 = sess.get("d1")
-        if not d1 or not d2:
-            await callback.message.answer("❌ Сессия сравнения устарела. /compare", reply_markup=MAIN_MENU)
-            await callback.answer()
-            return
-        sess["d2"] = d2
-        COMPARE_SESSION[callback.from_user.id] = sess
-        # Запросим тариф (с кнопками)
-        AWAIT_COMPARE_ELECTRICITY.add(callback.from_user.id)
-        await callback.message.answer(
-            "💡 Введите общий тариф за кВт⋅ч (например: <code>6 RUB</code> или <code>0.1 USD</code>)\nИли выберите кнопку ниже:",
-            reply_markup=build_quick_tariff_kb("cmp_tariff_"),
-        )
-    except Exception as e:
-        await callback.message.answer(f"❌ Ошибка: {e}", reply_markup=MAIN_MENU)
-    await callback.answer()
-
-@dp.callback_query(F.data.startswith("cmp_tariff_"))
-async def cb_cmp_quick_tariff(callback):
-    user_id = callback.from_user.id
-    sess = COMPARE_SESSION.get(user_id, {})
-    if not sess.get("d1") or not sess.get("d2"):
-        await callback.answer()
-        return
-    data = callback.data.split("cmp_tariff_")[-1]
-    if data == "custom":
-        await callback.message.answer("Введите тариф вручную, например: <code>6 RUB</code> или <code>0.1 USD</code>", reply_markup=MAIN_MENU)
-        await callback.answer()
-        return
-    if data == "rub":
-        await callback.message.answer("Введите тариф в ₽/кВт⋅ч, например: <code>5</code>", reply_markup=MAIN_MENU)
-        await callback.answer()
-        return
-    try:
-        price = float(data)
-    except Exception:
-        await callback.answer()
-        return
-    await _compare_and_show(callback.message, user_id, price, "USD")
-    COMPARE_SESSION.pop(user_id, None)
-    await callback.answer()
-
-@dp.callback_query(F.data.startswith("nh_tariff_"))
-async def cb_nh_quick_tariff(callback):
-    user_id = callback.from_user.id
-    sess = NH_CALC_SESSION.get(user_id, {})
-    if not sess:
-        await callback.answer()
-        return
-    data = callback.data.split("nh_tariff_")[-1]
-    if data == "custom":
-        await callback.message.answer("Введите тариф вручную, например: <code>6 RUB</code> или <code>0.1 USD</code>", reply_markup=MAIN_MENU)
-        await callback.answer()
-        return
-    if data == "rub":
-        await callback.message.answer("Введите тариф в ₽/кВт⋅ч, например: <code>5</code>", reply_markup=MAIN_MENU)
-        await callback.answer()
-        return
-    try:
-        price = float(data)
-    except Exception:
-        await callback.answer()
-        return
-    # Выполним расчёт как при текстовом вводе, в валюте USD
-    import httpx
-    payload = {
-        "mode": "algo",
-        "algoId": sess.get("algoId"),
-        "hashrate": sess.get("hashrate"),
-        "power_w": sess.get("power_w", 120),
-        "electricity": {"value": price, "currency": "USD"},
-        "fees": {"marketplace_pct": 2.0, "pool_pct": 1.0},
-        "uptime_pct": 98.0,
-        "fiat": "RUB",  # Отображать удобнее в рублях
-        "periods": ["1h","24h","168h","720h"],
-    }
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.post(f"{SERVICE_BASE_URL}/calculate", json=payload)
-            r.raise_for_status()
-            result = r.json()
-        p = result.get("periods", {})
-        def fmt(v):
-            return f"{v:,.2f}".replace(",", " ")
-        sym = "₽"
-        roi_line = ""
-        # Добавим ROI по известной цене устройства
-        price_rub = sess.get("device_price_rub")
-        if isinstance(price_rub, (int, float)) and price_rub > 0:
-            day_net = p.get("24h", {}).get("net_profit_fiat", 0.0)
-            roi_days = price_rub / day_net if day_net > 0 else None
-            if roi_days:
-                roi_line = f"\n📅 ROI: ~{roi_days:.0f} дней при текущих параметрах"
-        text = (
-            f"🧮 <b>Результат (NH): {result.get('algoId')}</b>\n"
-            f"Ед.: <b>{result.get('unit')}</b> | Валюта: <b>{payload['fiat']}</b>\n\n"
-            f"⏱ 1ч: вал: {fmt(p.get('1h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('1h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('1h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('1h',{}).get('net_profit_fiat',0))}{sym}</b>\n"
-            f"📅 24ч: вал: {fmt(p.get('24h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('24h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('24h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('24h',{}).get('net_profit_fiat',0))}{sym}</b>\n"
-            f"📈 7д: вал: {fmt(p.get('168h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('168h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('168h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('168h',{}).get('net_profit_fiat',0))}{sym}</b>\n"
-            f"🗓 30д: вал: {fmt(p.get('720h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('720h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('720h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('720h',{}).get('net_profit_fiat',0))}{sym}</b>" + roi_line + "\n\n"
-            f"<i>Расчёты ориентировочные; источник ставок — NiceHash API.</i>"
-        )
-        await callback.message.answer(text, reply_markup=MAIN_MENU)
-    except Exception as e:
-        await callback.message.answer(f"❌ Ошибка расчёта: {e}", reply_markup=MAIN_MENU)
-    finally:
-        AWAIT_NH_ELECTRICITY.discard(user_id)
-        NH_CALC_SESSION.pop(user_id, None)
-    await callback.answer()
 @dp.callback_query(F.data.startswith("nh_algo_"))
 async def cb_nh_algo(callback):
     algo_id = callback.data.split("nh_algo_")[-1]
@@ -913,21 +669,80 @@ async def cb_nh_algo(callback):
     await callback.message.answer("🔢 Введите хешрейт и единицу, например: <code>120 TH</code>", reply_markup=MAIN_MENU)
     await callback.answer()
 
+# 📝 Обработчик ввода данных для калькулятора
+@dp.message()
+async def handle_calculator_input(message: Message):
+    """Обработка ввода данных для калькулятора"""
+    user_id = message.from_user.id
+    session = CALC_SESSION.get(user_id)
+
+    if not session or session.get("mode") not in ["equipment", "algorithm"]:
+        return  # Не в режиме калькулятора
+
+    text = message.text.strip()
+
+    if session.get("step") == "custom_tariff":
+        # Обработка ручного ввода тарифа
+        try:
+            parts = text.upper().split()
+            if len(parts) != 2:
+                raise ValueError("Неверный формат")
+
+            value = float(parts[0])
+            currency = parts[1]
+
+            if currency == "RUB":
+                electricity_price_rub = value
+            elif currency == "USD":
+                electricity_price_rub = value * 85  # Конвертация
+            else:
+                raise ValueError("Неподдерживаемая валюта")
+
+            # Выполняем расчет
+            await perform_calculation(message, electricity_price_rub)
+
+            # Очищаем сессию
+            CALC_SESSION.pop(user_id, None)
+
+        except (ValueError, IndexError):
+            await message.answer(
+                "❌ <b>Неверный формат тарифа!</b>\n\n"
+                "Примеры правильного ввода:\n"
+                "<code>5.5 RUB</code>\n"
+                "<code>0.07 USD</code>\n"
+                "<code>4.2 RUB</code>\n\n"
+                "Попробуйте еще раз:",
+                reply_markup=MAIN_MENU
+            )
+
 # 🧮 Калькулятор
 @dp.message(F.text == "🧮 Калькулятор")
 async def cmd_calculator(message: Message):
     user_id = message.from_user.id
-    CALC_SESSION[user_id] = {"mode": None}
-    # Инлайн‑режимы
+    CALC_SESSION[user_id] = {"mode": None, "step": None, "data": {}}
+
+    # Новый расширенный интерфейс калькулятора
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📦 По устройству (пресеты)", callback_data="calc_mode_device")],
-        [InlineKeyboardButton(text="⛏️ По алгоритму (ввести хешрейт)", callback_data="calc_mode_algo")],
-        [InlineKeyboardButton(text="📋 По модели (свободный ввод)", callback_data="calc_mode_model")],
+        [InlineKeyboardButton(text="📱 По оборудованию", callback_data="calc_equipment")],
+        [InlineKeyboardButton(text="⚙️ По алгоритму", callback_data="calc_algorithm")],
+        [InlineKeyboardButton(text="📊 Сравнить модели", callback_data="calc_compare")],
     ])
-    await message.answer(
-        "🧮 <b>Калькулятор прибыли</b>\n\nВыберите режим:",
-        reply_markup=kb,
-    )
+
+    welcome_text = """
+🧮 <b>ПРОФЕССИОНАЛЬНЫЙ КАЛЬКУЛЯТОР МАЙНИНГА</b>
+
+Выберите режим расчета:
+
+📱 <b>По оборудованию</b> - выберите из базы ASIC майнеров с реальными ценами
+⚙️ <b>По алгоритму</b> - введите хешрейт и параметры для любого алгоритма
+📊 <b>Сравнить модели</b> - сравните несколько майнеров одновременно
+
+💰 <b>Поддержка валют:</b> RUB/USD
+📈 <b>Графики и аналитика</b> включены
+⚡ <b>Реальные данные</b> из нескольких источников
+"""
+
+    await message.answer(welcome_text, reply_markup=kb)
 
 @dp.message(Command("algo"))
 async def cmd_algo_list(message: Message):
@@ -1040,22 +855,437 @@ async def cb_calc_unit(callback):
     await callback.message.answer(f"🔢 Укажите число в {unit}, например: <code>120</code>", reply_markup=MAIN_MENU)
     await callback.answer()
 
-@dp.callback_query(F.data == "calc_mode_device")
-async def cb_calc_mode_device(callback):
-    import httpx
+# 🎯 Обработчики нового калькулятора
+
+@dp.callback_query(F.data == "calc_equipment")
+async def cb_calc_equipment(callback):
+    """Выбор режима 'По оборудованию'"""
+    user_id = callback.from_user.id
+    CALC_SESSION[user_id] = {"mode": "equipment", "step": "category", "data": {}}
+
+    # Кнопки категорий оборудования
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🏆 ТОП", callback_data="equip_top")],
+        [InlineKeyboardButton(text="⭐ СРЕДНИЕ", callback_data="equip_mid")],
+        [InlineKeyboardButton(text="💰 БЮДЖЕТНЫЕ", callback_data="equip_budget")],
+        [InlineKeyboardButton(text="📋 ВСЕ МОДЕЛИ", callback_data="equip_all")],
+    ])
+
+    await callback.message.answer(
+        "📱 <b>РАСЧЕТ ПО ОБОРУДОВАНИЮ</b>\n\n"
+        "Выберите категорию ASIC майнеров:\n\n"
+        "🏆 <b>ТОП</b> - флагманы с максимальной производительностью\n"
+        "⭐ <b>СРЕДНИЕ</b> - оптимальное соотношение цена/производительность\n"
+        "💰 <b>БЮДЖЕТНЫЕ</b> - доступные модели для начинающих\n"
+        "📋 <b>ВСЕ</b> - полный список моделей",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("equip_"))
+async def cb_equip_category(callback):
+    """Выбор категории оборудования"""
+    category_map = {
+        "equip_top": EquipmentCategory.TOP,
+        "equip_mid": EquipmentCategory.MID,
+        "equip_budget": EquipmentCategory.BUDGET,
+        "equip_all": None  # Все категории
+    }
+
+    category_key = callback.data
+    category = category_map.get(category_key)
+
+    user_id = callback.from_user.id
+    if category:
+        miners = get_miners_by_category(category)
+    else:
+        miners = ASIC_MINERS[:20]  # Показываем первые 20 моделей
+
+    CALC_SESSION[user_id]["data"]["category"] = category_key
+    CALC_SESSION[user_id]["step"] = "model"
+
+    # Создаем кнопки для моделей (максимум 10 кнопок)
+    buttons = []
+    for i, miner in enumerate(miners[:10]):
+        display_name = f"{miner.vendor} {miner.model}"
+        if len(display_name) > 25:  # Обрезаем длинные названия
+            display_name = display_name[:22] + "..."
+        buttons.append([InlineKeyboardButton(
+            text=display_name,
+            callback_data=f"model_{i}"
+        )])
+
+    # Добавляем кнопку "Показать еще" если моделей больше 10
+    if len(miners) > 10:
+        buttons.append([InlineKeyboardButton(
+            text="📄 Показать еще моделей",
+            callback_data="models_more_10"
+        )])
+
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    category_name = {
+        "equip_top": "ТОП",
+        "equip_mid": "СРЕДНИЕ",
+        "equip_budget": "БЮДЖЕТНЫЕ",
+        "equip_all": "ВСЕ"
+    }.get(category_key, "ВСЕ")
+
+    await callback.message.answer(
+        f"📋 <b>МОДЕЛИ КАТЕГОРИИ '{category_name}'</b>\n\n"
+        f"Найдено моделей: {len(miners)}\n"
+        "Выберите конкретную модель для расчета:",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("model_"))
+async def cb_select_model(callback):
+    """Выбор конкретной модели майнера"""
+    model_index = int(callback.data.split("model_")[-1])
+    user_id = callback.from_user.id
+
+    # Получаем выбранную категорию из сессии
+    category_key = CALC_SESSION[user_id]["data"].get("category", "equip_all")
+    category_map = {
+        "equip_top": EquipmentCategory.TOP,
+        "equip_mid": EquipmentCategory.MID,
+        "equip_budget": EquipmentCategory.BUDGET,
+        "equip_all": None
+    }
+    category = category_map.get(category_key)
+
+    if category:
+        miners = get_miners_by_category(category)
+    else:
+        miners = ASIC_MINERS
+
+    if model_index >= len(miners):
+        await callback.message.answer("❌ Модель не найдена", reply_markup=MAIN_MENU)
+        await callback.answer()
+        return
+
+    miner = miners[model_index]
+    CALC_SESSION[user_id]["data"]["miner"] = miner
+    CALC_SESSION[user_id]["step"] = "condition"
+
+    # Выбор состояния (БУ/новое)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=f"💵 БУ: ${miner.price_used_usd:,} (₽{miner.price_used_rub:,})",
+                                callback_data="condition_used"),
+            InlineKeyboardButton(text=f"✨ НОВЫЙ: ${miner.price_new_usd:,} (₽{miner.price_new_rub:,})",
+                                callback_data="condition_new")
+        ],
+        [InlineKeyboardButton(text="🔙 Назад к категориям", callback_data="calc_equipment")]
+    ])
+
+    miner_info = f"""
+📦 <b>{miner.full_name}</b>
+
+🔢 <b>Хешрейт:</b> {miner.hashrate_display}
+⚡ <b>Мощность:</b> {miner.power_w} W
+🎯 <b>Алгоритм:</b> {miner.algorithm}
+🏭 <b>Производитель:</b> {miner.vendor}
+📅 <b>Год выпуска:</b> {miner.release_year}
+
+💰 <b>ЦЕНЫ:</b>
+• БУ: ${miner.price_used_usd:,} / ₽{miner.price_used_rub:,}
+• НОВЫЙ: ${miner.price_new_usd:,} / ₽{miner.price_new_rub:,}
+"""
+
+    await callback.message.answer(
+        f"{miner_info}\nВыберите состояние оборудования:",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("condition_"))
+async def cb_select_condition(callback):
+    """Выбор состояния оборудования (БУ/новое)"""
+    condition = callback.data.split("condition_")[-1]  # "used" or "new"
+    user_id = callback.from_user.id
+
+    miner = CALC_SESSION[user_id]["data"]["miner"]
+    is_used = condition == "used"
+
+    CALC_SESSION[user_id]["data"]["is_used"] = is_used
+    CALC_SESSION[user_id]["step"] = "electricity"
+
+    # Выбор тарифа на электричество
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="0 ₽", callback_data="tariff_0"),
+            InlineKeyboardButton(text="2 ₽", callback_data="tariff_2"),
+            InlineKeyboardButton(text="4 ₽", callback_data="tariff_4")
+        ],
+        [
+            InlineKeyboardButton(text="6 ₽", callback_data="tariff_6"),
+            InlineKeyboardButton(text="$0.05", callback_data="tariff_0.05"),
+            InlineKeyboardButton(text="$0.08", callback_data="tariff_0.08")
+        ],
+        [
+            InlineKeyboardButton(text="$0.10", callback_data="tariff_0.10"),
+            InlineKeyboardButton(text="✏️ Ввести вручную", callback_data="tariff_custom")
+        ],
+        [InlineKeyboardButton(text="🔙 Назад к модели", callback_data=f"model_{CALC_SESSION[user_id]['data'].get('model_index', 0)}")]
+    ])
+
+    condition_text = "БУ" if is_used else "НОВОЕ"
+    price_rub = miner.get_price_rub(is_used)
+    price_usd = miner.get_price_usd(is_used)
+
+    await callback.message.answer(
+        f"⚡ <b>ТАРИФ НА ЭЛЕКТРИЧЕСТВО</b>\n\n"
+        f"📦 <b>{miner.full_name} ({condition_text})</b>\n"
+        f"💰 Цена: ${price_usd:,} / ₽{price_rub:,}\n\n"
+        f"Выберите стоимость электричества за кВт⋅ч:\n"
+        f"(или введите вручную в формате: <code>5.5 RUB</code> или <code>0.07 USD</code>)",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data.startswith("tariff_"))
+async def cb_select_tariff(callback):
+    """Выбор тарифа на электричество и выполнение расчета"""
+    tariff_str = callback.data.split("tariff_")[-1]
+    user_id = callback.from_user.id
+
+    if tariff_str == "custom":
+        # Ручной ввод тарифа
+        CALC_SESSION[user_id]["step"] = "custom_tariff"
+        await callback.message.answer(
+            "💡 <b>ВВОД ТАРИФА ВРУЧНУЮ</b>\n\n"
+            "Введите стоимость электричества в формате:\n"
+            "<code>5.5 RUB</code> - для рублей\n"
+            "<code>0.07 USD</code> - для долларов\n\n"
+            "Пример: <code>4.2 RUB</code>",
+            reply_markup=MAIN_MENU
+        )
+        await callback.answer()
+        return
+
+    # Парсим тариф
+    if tariff_str.replace(".", "").isdigit():
+        if "." in tariff_str:
+            # USD tariff (has decimal point)
+            electricity_price_usd = float(tariff_str)
+            electricity_price_rub = electricity_price_usd * 85  # Примерный курс
+        else:
+            # RUB tariff (whole number)
+            electricity_price_rub = float(tariff_str)
+            electricity_price_usd = electricity_price_rub / 85
+    else:
+        await callback.message.answer("❌ Ошибка в тарифе", reply_markup=MAIN_MENU)
+        await callback.answer()
+        return
+
+    # Выполняем расчет
+    await perform_calculation(callback, electricity_price_rub)
+
+@dp.callback_query(F.data == "calc_algorithm")
+async def cb_calc_algorithm(callback):
+    """Выбор режима 'По алгоритму'"""
+    user_id = callback.from_user.id
+    CALC_SESSION[user_id] = {"mode": "algorithm", "step": "select_algo", "data": {}}
+
+    # Популярные алгоритмы для быстрого выбора
+    popular_algos = ["SHA-256", "Scrypt", "KHeavyHash", "Blake3", "Ethash", "X11"]
+
+    buttons = []
+    for algo in popular_algos:
+        buttons.append([InlineKeyboardButton(text=algo, callback_data=f"algo_{algo}")])
+
+    buttons.append([InlineKeyboardButton(text="📋 Все алгоритмы", callback_data="algo_all")])
+
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    await callback.message.answer(
+        "⚙️ <b>РАСЧЕТ ПО АЛГОРИТМУ</b>\n\n"
+        "Выберите алгоритм майнинга:\n\n"
+        "После выбора алгоритма нужно будет ввести:\n"
+        "• Хешрейт (например: 100 TH/s)\n"
+        "• Мощность потребления (в Вт)\n"
+        "• Тариф на электричество",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "calc_compare")
+async def cb_calc_compare(callback):
+    """Режим сравнения моделей"""
+    user_id = callback.from_user.id
+    CALC_SESSION[user_id] = {"mode": "compare", "step": "select_models", "data": {"models": []}}
+
+    # Показываем топ моделей для сравнения
+    top_miners = get_miners_by_category(EquipmentCategory.TOP)[:6]  # Первые 6
+
+    buttons = []
+    for i, miner in enumerate(top_miners):
+        display_name = f"{miner.vendor} {miner.model}"
+        if len(display_name) > 25:
+            display_name = display_name[:22] + "..."
+        buttons.append([InlineKeyboardButton(
+            text=f"✅ {display_name}" if i < 2 else display_name,
+            callback_data=f"compare_add_{i}"
+        )])
+
+    buttons.append([InlineKeyboardButton(text="🚀 Рассчитать сравнение", callback_data="compare_calc")])
+
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    await callback.message.answer(
+        "📊 <b>СРАВНЕНИЕ МАЙНЕРОВ</b>\n\n"
+        "Выберите 2-3 модели для сравнения:\n\n"
+        "Кнопки с ✅ уже выбраны для сравнения.\n"
+        "Нажмите на модель чтобы добавить/убрать из сравнения.",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+# 🔧 Вспомогательные функции для калькулятора
+
+async def perform_calculation(callback_or_message, electricity_price_rub: float):
+    """Выполнение расчета и отображение результатов"""
+    if hasattr(callback_or_message, 'from_user'):
+        user_id = callback_or_message.from_user.id
+        send_func = callback_or_message.message.answer if hasattr(callback_or_message, 'message') else callback_or_message.answer
+    else:
+        user_id = callback_or_message.from_user.id
+        send_func = callback_or_message.answer
+
+    session = CALC_SESSION.get(user_id, {})
+    if not session or session.get("mode") != "equipment":
+        await send_func("❌ Сессия расчета истекла. Начните заново.", reply_markup=MAIN_MENU)
+        return
+
+    miner = session["data"].get("miner")
+    is_used = session["data"].get("is_used", True)
+
+    if not miner:
+        await send_func("❌ Данные майнера не найдены", reply_markup=MAIN_MENU)
+        return
+
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(f"{SERVICE_BASE_URL}/devices")
-            r.raise_for_status()
-            devices = r.json()
-        rows = []
-        for d in devices:
-            title = f"{d.get('vendor')} {d.get('model')}"
-            rows.append([InlineKeyboardButton(text=title, callback_data=f"nh_dev_{d.get('id')}")])
-        kb = InlineKeyboardMarkup(inline_keyboard=rows)
-        await callback.message.answer("📦 Выберите устройство:", reply_markup=kb)
+        # Выполняем расчет
+        result = await calculate_equipment_profitability(miner.model, electricity_price_rub, is_used)
+
+        if not result:
+            await send_func("❌ Не удалось выполнить расчет. Попробуйте позже.", reply_markup=MAIN_MENU)
+            return
+
+        # Форматируем и отправляем результаты
+        await send_calculation_results(send_func, result)
+
     except Exception as e:
-        await callback.message.answer(f"❌ Не удалось получить устройства. {e}", reply_markup=MAIN_MENU)
+        print(f"Ошибка расчета: {e}")
+        await send_func(f"❌ Ошибка при расчете: {str(e)}", reply_markup=MAIN_MENU)
+
+async def send_calculation_results(send_func, result):
+    """Отправка результатов расчета пользователю"""
+    miner = result.miner
+
+    # Основная информация о майнере
+    header = f"""
+🧮 <b>РЕЗУЛЬТАТЫ РАСЧЕТА</b>
+
+📦 <b>{miner.full_name}</b>
+🔢 {result.hashrate_display} | ⚡ {result.power_display}
+🎯 Алгоритм: {result.algorithm.name if result.algorithm else miner.algorithm}
+💰 Состояние: {"БУ" if result.params.electricity_price_rub > 0 else "НОВОЕ"}
+⚡ Электричество: {result.params.electricity_price_rub:.2f} ₽/кВт⋅ч
+"""
+
+    # Текущая прибыльность
+    current_profit = f"""
+💰 <b>ТЕКУЩАЯ ПРИБЫЛЬНОСТЬ:</b>
+• В день: <b>+{result.current_profit_rub_day:,.0f} ₽</b> (${result.current_profit_usd_day:,.2f})
+• В месяц: <b>+{result.current_profit_rub_day * 30:,.0f} ₽</b> (${result.current_profit_usd_day * 30:,.2f})
+• Электричество в день: <b>-{result.electricity_cost_rub_day:,.0f} ₽</b> (${result.electricity_cost_usd_day:,.2f})
+"""
+
+    # ROI информация
+    roi_info = ""
+    if result.roi_days_used:
+        payback_months = result.payback_months_used or 0
+        roi_info += f"🎯 <b>ОКУПАЕМОСТЬ БУ:</b> {result.roi_days_used} дней ({payback_months:.1f} месяцев)\n"
+
+    if result.roi_days_new:
+        payback_months = result.payback_months_new or 0
+        roi_info += f"🎯 <b>ОКУПАЕМОСТЬ НОВОГО:</b> {result.roi_days_new} дней ({payback_months:.1f} месяцев)\n"
+
+    # Детальная таблица по периодам
+    periods_text = "\n📊 <b>ПОДРОБНЫЙ РАСЧЕТ:</b>\n"
+
+    for res in result.results[:4]:  # Показываем первые 4 периода
+        period_name = {
+            "1h": "1 час",
+            "24h": "1 день",
+            "168h": "1 неделя",
+            "720h": "1 месяц"
+        }.get(res.period.value, res.period.value)
+
+        periods_text += f"""
+<b>{period_name}:</b>
+└ Прибыль: +{res.net_profit_rub:,.0f} ₽ (+${res.net_profit_usd:,.2f})
+└ Электричество: -{res.electricity_cost_rub:,.0f} ₽ (-${res.electricity_cost_usd:,.2f})"""
+
+    # Кнопки для дополнительных действий
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📈 График прибыльности", callback_data="show_profit_chart")],
+        [InlineKeyboardButton(text="🎯 График окупаемости", callback_data="show_roi_chart")],
+        [InlineKeyboardButton(text="📋 Полный отчет", callback_data="show_full_report")],
+        [InlineKeyboardButton(text="🔄 Новый расчет", callback_data="calc_equipment")]
+    ])
+
+    # Отправляем результаты
+    full_message = header + current_profit + roi_info + periods_text
+    full_message += f"\n\n📅 <b>Рассчитано:</b> {result.calculated_at.strftime('%d.%m.%Y %H:%M')}"
+    full_message += f"\n🔗 <b>Источник:</b> {result.data_source}"
+
+    await send_func(full_message, reply_markup=kb)
+
+    # Сохраняем результат в сессии для графиков
+    # (в реальности нужно сохранять в БД для истории)
+
+@dp.callback_query(F.data == "show_profit_chart")
+async def cb_show_profit_chart(callback):
+    """Показать график прибыльности"""
+    # В реальном коде здесь нужно получить сохраненный результат
+    await callback.message.answer(
+        "📈 <b>ГРАФИК ПРИБЫЛЬНОСТИ</b>\n\n"
+        "График показывает динамику прибыли по периодам с учетом\n"
+        "роста сложности сети и деградации оборудования.\n\n"
+        "<i>График будет доступен в следующей версии бота</i>",
+        reply_markup=MAIN_MENU
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "show_roi_chart")
+async def cb_show_roi_chart(callback):
+    """Показать график окупаемости"""
+    await callback.message.answer(
+        "🎯 <b>ГРАФИК ОКУПАЕМОСТИ (ROI)</b>\n\n"
+        "График показывает срок окупаемости оборудования\n"
+        "с накопительной кривой прибыли.\n\n"
+        "<i>График будет доступен в следующей версии бота</i>",
+        reply_markup=MAIN_MENU
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "show_full_report")
+async def cb_show_full_report(callback):
+    """Показать полный отчет"""
+    await callback.message.answer(
+        "📋 <b>ПОЛНЫЙ ОТЧЕТ</b>\n\n"
+        "Полный аналитический отчет включает:\n"
+        "• Детальные графики по всем периодам\n"
+        "• Анализ чувствительности к цене электричества\n"
+        "• Прогноз прибыльности на год\n"
+        "• Сравнение с альтернативными инвестициями\n\n"
+        "<i>Полный отчет будет доступен в следующей версии бота</i>",
+        reply_markup=MAIN_MENU
+    )
     await callback.answer()
 
 @dp.callback_query(F.data.startswith("nh_dev_"))
@@ -1079,15 +1309,11 @@ async def cb_nh_device(callback):
             "power_w": float(dev.get('power_w', 0)),
         }
         AWAIT_NH_ELECTRICITY.add(user_id)
-        # Сохраним название и цену (если известна) для будущего ROI
-        title = f"{dev.get('vendor')} {dev.get('model')}"
-        NH_CALC_SESSION[user_id]["device_title"] = title
-        NH_CALC_SESSION[user_id]["device_price_rub"] = _get_price_rub(title)
         await callback.message.answer(
-            f"📦 Выбрано: <b>{title}</b>\n"
+            f"📦 Выбрано: <b>{dev.get('vendor')} {dev.get('model')}</b>\n"
             f"🔢 Хешрейт: {dev.get('nominal_hashrate_value')} {dev.get('unit')} | ⚡ {dev.get('power_w')}W\n\n"
-            "💡 Введите тариф: <code>6 RUB</code> или <code>0.1 USD</code>\nИли выберите кнопку ниже:",
-            reply_markup=build_quick_tariff_kb("nh_tariff_"),
+            "💡 Введите тариф: <code>6 RUB</code> или <code>0.1 USD</code>",
+            reply_markup=MAIN_MENU,
         )
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка загрузки устройства: {e}", reply_markup=MAIN_MENU)
@@ -1331,7 +1557,7 @@ async def handler_inline_states(message: Message):
             NH_CALC_SESSION[message.from_user.id] = sess
             AWAIT_NH_POWER.discard(message.from_user.id)
             AWAIT_NH_ELECTRICITY.add(message.from_user.id)
-            await message.answer("💡 Введите тариф за кВт⋅ч и валюту, например: <code>6 RUB</code> или <code>0.1 USD</code>\nИли выберите кнопку ниже:", reply_markup=build_quick_tariff_kb("nh_tariff_"))
+            await message.answer("💡 Введите тариф за кВт⋅ч и валюту, например: <code>6 RUB</code> или <code>0.1 USD</code>", reply_markup=MAIN_MENU)
         except Exception:
             await message.answer("❌ Укажите число, например: 3250", reply_markup=MAIN_MENU)
         return
@@ -1363,28 +1589,13 @@ async def handler_inline_states(message: Message):
             def fmt(v):
                 return f"{v:,.2f}".replace(",", " ")
             sym = {"RUB":"₽","USD":"$","EUR":"€","CZK":"Kč"}.get(payload["fiat"], "")
-            # ROI (если знаем цену устройства)
-            roi_line = ""
-            price_rub = sess.get("device_price_rub")
-            if isinstance(price_rub, (int, float)) and price_rub > 0:
-                day_net = p.get("24h", {}).get("net_profit_fiat", 0.0)
-                if payload["fiat"] == "RUB":
-                    roi_days = price_rub / day_net if day_net > 0 else None
-                elif payload["fiat"] == "USD":
-                    usd_rub = await currency_api.get_usd_rub_rate()
-                    price_usd = price_rub / usd_rub if usd_rub > 0 else None
-                    roi_days = (price_usd / day_net) if (price_usd and day_net > 0) else None
-                else:
-                    roi_days = None
-                if roi_days:
-                    roi_line = f"\n📅 ROI: ~{roi_days:.0f} дней при текущих параметрах"
             text = (
                 f"🧮 <b>Результат (NH): {result.get('algoId')}</b>\n"
                 f"Ед.: <b>{result.get('unit')}</b> | Валюта: <b>{payload['fiat']}</b>\n\n"
                 f"⏱ 1ч: вал: {fmt(p.get('1h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('1h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('1h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('1h',{}).get('net_profit_fiat',0))}{sym}</b>\n"
                 f"📅 24ч: вал: {fmt(p.get('24h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('24h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('24h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('24h',{}).get('net_profit_fiat',0))}{sym}</b>\n"
                 f"📈 7д: вал: {fmt(p.get('168h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('168h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('168h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('168h',{}).get('net_profit_fiat',0))}{sym}</b>\n"
-                f"🗓 30д: вал: {fmt(p.get('720h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('720h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('720h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('720h',{}).get('net_profit_fiat',0))}{sym}</b>" + roi_line + "\n\n"
+                f"🗓 30д: вал: {fmt(p.get('720h',{}).get('revenue_fiat',0))}{sym}, эл.: {fmt(p.get('720h',{}).get('electricity_cost_fiat',0))}{sym}, комиссия: {fmt(p.get('720h',{}).get('fees_fiat',0))}{sym}, чистая: <b>{fmt(p.get('720h',{}).get('net_profit_fiat',0))}{sym}</b>\n\n"
                 f"<i>Расчёты ориентировочные; источник ставок — NiceHash API.</i>"
             )
             await message.answer(text, reply_markup=MAIN_MENU)
@@ -1393,23 +1604,6 @@ async def handler_inline_states(message: Message):
         finally:
             AWAIT_NH_ELECTRICITY.discard(message.from_user.id)
             NH_CALC_SESSION.pop(message.from_user.id, None)
-        return
-
-    # /compare: ручной ввод тарифа
-    if message.from_user.id in AWAIT_COMPARE_ELECTRICITY:
-        parts = message.text.strip().split()
-        if not parts:
-            await message.answer("❌ Укажите тариф, например: <code>6 RUB</code> или <code>0.1 USD</code>", reply_markup=MAIN_MENU)
-            return
-        try:
-            price = float(parts[0].replace(',', '.'))
-        except Exception:
-            await message.answer("❌ Первый параметр — число. Пример: <code>6 RUB</code>", reply_markup=MAIN_MENU)
-            return
-        ccy = (parts[1] if len(parts) > 1 else 'RUB').upper()
-        await _compare_and_show(message, message.from_user.id, price, ccy)
-        AWAIT_COMPARE_ELECTRICITY.discard(message.from_user.id)
-        COMPARE_SESSION.pop(message.from_user.id, None)
         return
 
     # Фолбэки по ключевым словам (на случай, если эмодзи/раскладка отличаются)

@@ -7,6 +7,8 @@ import sys
 import json
 import os
 from pathlib import Path
+import subprocess
+import webbrowser
 import traceback
 
 # Add current directory to path for imports
@@ -29,6 +31,10 @@ except ImportError:
         import tkinter as tk
         from tkinter import ttk, messagebox
         PYQT_VERSION = None
+
+# Import messagebox for Tkinter version
+if not PYQT_VERSION:
+    import tkinter.messagebox as messagebox
 
 # Import ThermoMiner Pro modules
 from coredb import CoreDB
@@ -846,6 +852,9 @@ else:
             self.db = CoreDB()
             self.kb = get_knowledge_base()
 
+            # Initialize UI variables
+            self.initialize_variables()
+
             self.root = tk.Tk()
             self.root.title("ThermoMiner Pro - Интеллектуальный Калькулятор Охлаждения Майнинг-Ферм")
             self.root.geometry("1000x700")
@@ -853,8 +862,94 @@ else:
             self.create_ui()
             self.load_sample_data()
 
+        def initialize_variables(self):
+            """Initialize all UI variables."""
+            # Hydro cooling variables
+            self.hydro_vendor_var = tk.StringVar()
+            self.hydro_model_var = tk.StringVar()
+            self.hydro_quantity_var = tk.StringVar(value="1")
+            self.hydro_tdp_var = tk.StringVar(value="")
+            self.hydro_total_tdp_var = tk.StringVar(value="0 Вт")
+            self.coolant_temp_var = tk.StringVar(value="25")
+
+            # Air cooling variables
+            self.air_vendor_var = tk.StringVar()
+            self.air_model_var = tk.StringVar()
+            self.air_quantity_var = tk.StringVar(value="1")
+            self.air_tdp_var = tk.StringVar(value="")
+            self.air_total_tdp_var = tk.StringVar(value="0 Вт")
+
+            # Room variables
+            self.room_length_var = tk.StringVar(value="10")
+            self.room_width_var = tk.StringVar(value="6")
+            self.room_height_var = tk.StringVar(value="3")
+
+            # Comparison variables
+            self.air_capex_var = tk.StringVar(value="500")
+            self.air_power_var = tk.StringVar(value="120")
+            self.hydro_capex_var = tk.StringVar(value="1200")
+            self.hydro_power_var = tk.StringVar(value="80")
+            self.elec_price_var = tk.StringVar(value="0.10")
+
+            # 3D Visualization variables
+            self.viz_length_var = tk.StringVar(value="10")
+            self.viz_width_var = tk.StringVar(value="6")
+            self.viz_height_var = tk.StringVar(value="3")
+            self.viz_quantity_var = tk.StringVar(value="10")
+            self.viz_tdp_var = tk.StringVar(value="3250")
+            self.viz_position_var = tk.StringVar(value="2,2,1")
+
+            # ROI Calculator variables
+            self.roi_model_var = tk.StringVar(value="Antminer S19 Pro")
+            self.roi_hashrate_var = tk.StringVar(value="110")
+            self.roi_power_var = tk.StringVar(value="3250")
+            self.roi_quantity_var = tk.StringVar(value="10")
+            self.roi_price_var = tk.StringVar(value="2500")
+            self.roi_cooling_type_var = tk.StringVar(value="hydro")
+            self.roi_cooling_capex_var = tk.StringVar(value="5000")
+            self.roi_cooling_power_var = tk.StringVar(value="500")
+            self.roi_elec_price_var = tk.StringVar(value="0.08")
+
+            # ML Analysis variables
+            self.ml_equipment_id_var = tk.StringVar(value="ASIC-001")
+            self.ml_chip_temp_var = tk.StringVar(value="75")
+            self.ml_coolant_temp_var = tk.StringVar(value="30")
+            self.ml_flow_rate_var = tk.StringVar(value="10")
+            self.ml_hashrate_var = tk.StringVar(value="110")
+
+            # Simulation variables
+            self.sim_type_var = tk.StringVar(value="pump_failure")
+            self.sim_duration_var = tk.StringVar(value="600")
+            self.sim_failure_time_var = tk.StringVar(value="60")
+
+            # API status
+            self.api_status_label = None
+
+            # Current mapper for 3D visualization
+            self.current_mapper = None
+
         def create_ui(self):
             """Create Tkinter UI."""
+            # Initialize theme manager
+            from ui.themes import ThemeManager, create_theme_toggle_button
+            self.theme_manager = ThemeManager()
+
+            # Top toolbar with theme toggle
+            toolbar = ttk.Frame(self.root)
+            toolbar.pack(fill='x', padx=10, pady=5)
+
+            # Theme toggle button
+            self.theme_toggle_btn = create_theme_toggle_button(
+                toolbar,
+                self.theme_manager,
+                self.on_theme_change
+            )
+            self.theme_toggle_btn.pack(side='right')
+
+            # Title label
+            title_label = ttk.Label(toolbar, text="ThermoMiner Pro - Новые Возможности", font=('Arial', 12, 'bold'))
+            title_label.pack(side='left')
+
             # Create notebook (tabs)
             self.notebook = ttk.Notebook(self.root)
             self.notebook.pack(fill='both', expand=True)
@@ -873,6 +968,31 @@ else:
             compare_frame = ttk.Frame(self.notebook)
             self.notebook.add(compare_frame, text='Сравнение')
             self.create_comparison_tab(compare_frame)
+
+            # 3D Visualization tab
+            viz_frame = ttk.Frame(self.notebook)
+            self.notebook.add(viz_frame, text='3D Визуализация')
+            self.create_visualization_tab(viz_frame)
+
+            # ROI Calculator tab
+            roi_frame = ttk.Frame(self.notebook)
+            self.notebook.add(roi_frame, text='ROI Калькулятор')
+            self.create_roi_tab(roi_frame)
+
+            # ML Analysis tab
+            ml_frame = ttk.Frame(self.notebook)
+            self.notebook.add(ml_frame, text='ML Анализ')
+            self.create_ml_tab(ml_frame)
+
+            # Emergency Simulator tab
+            sim_frame = ttk.Frame(self.notebook)
+            self.notebook.add(sim_frame, text='Симулятор Аварий')
+            self.create_simulation_tab(sim_frame)
+
+            # Mobile API tab
+            api_frame = ttk.Frame(self.notebook)
+            self.notebook.add(api_frame, text='Мобильное API')
+            self.create_api_tab(api_frame)
 
         def create_hydro_tab(self, parent):
             """Create hydro cooling tab."""
@@ -1604,6 +1724,628 @@ else:
             except:
                 pass
             self.root.mainloop()
+
+        def on_theme_change(self, new_theme):
+            """Handle theme change."""
+            print(f"Тема изменена на: {new_theme['name']}")
+            # Apply theme to matplotlib if used
+            try:
+                from ui.themes import apply_theme_to_matplotlib
+                apply_theme_to_matplotlib(self.theme_manager)
+            except:
+                pass
+
+        def create_visualization_tab(self, parent):
+            """Create 3D visualization tab."""
+            # Room configuration
+            config_frame = ttk.LabelFrame(parent, text="Конфигурация Помещения")
+            config_frame.pack(fill='x', padx=10, pady=5)
+
+            # Room dimensions
+            ttk.Label(config_frame, text="Длина (м):").grid(row=0, column=0, sticky='w')
+            self.viz_length_var = tk.StringVar(value="10")
+            ttk.Entry(config_frame, textvariable=self.viz_length_var).grid(row=0, column=1, padx=5)
+
+            ttk.Label(config_frame, text="Ширина (м):").grid(row=1, column=0, sticky='w')
+            self.viz_width_var = tk.StringVar(value="6")
+            ttk.Entry(config_frame, textvariable=self.viz_width_var).grid(row=1, column=1, padx=5)
+
+            ttk.Label(config_frame, text="Высота (м):").grid(row=2, column=0, sticky='w')
+            self.viz_height_var = tk.StringVar(value="3")
+            ttk.Entry(config_frame, textvariable=self.viz_height_var).grid(row=2, column=1, padx=5)
+
+            # ASIC configuration
+            asic_frame = ttk.LabelFrame(parent, text="Конфигурация ASIC")
+            asic_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Label(asic_frame, text="Количество ASIC:").grid(row=0, column=0, sticky='w')
+            self.viz_quantity_var = tk.StringVar(value="10")
+            ttk.Entry(asic_frame, textvariable=self.viz_quantity_var).grid(row=0, column=1, padx=5)
+
+            ttk.Label(asic_frame, text="TDP на ASIC (Вт):").grid(row=1, column=0, sticky='w')
+            self.viz_tdp_var = tk.StringVar(value="3250")
+            ttk.Entry(asic_frame, textvariable=self.viz_tdp_var).grid(row=1, column=1, padx=5)
+
+            ttk.Label(asic_frame, text="Расположение:").grid(row=2, column=0, sticky='w')
+            self.viz_position_var = tk.StringVar(value="2,2,1")
+            ttk.Entry(asic_frame, textvariable=self.viz_position_var).grid(row=2, column=1, padx=5)
+            ttk.Label(asic_frame, text="(x,y,z)").grid(row=2, column=2)
+
+            # Control buttons
+            btn_frame = ttk.Frame(parent)
+            btn_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Button(btn_frame, text="Создать 3D Визуализацию",
+                      command=self.create_3d_visualization).pack(side='left', padx=5)
+            ttk.Button(btn_frame, text="Сохранить в HTML",
+                      command=self.save_3d_visualization).pack(side='left', padx=5)
+
+            # Results
+            self.viz_results_text = tk.Text(parent, wrap=tk.WORD, height=10)
+            scrollbar = ttk.Scrollbar(parent, command=self.viz_results_text.yview)
+            self.viz_results_text.config(yscrollcommand=scrollbar.set)
+
+            self.viz_results_text.pack(side='left', fill='both', expand=True, padx=10, pady=5)
+            scrollbar.pack(side='right', fill='y')
+
+        def create_roi_tab(self, parent):
+            """Create ROI calculator tab."""
+            # Mining configuration
+            config_frame = ttk.LabelFrame(parent, text="Конфигурация Майнинга")
+            config_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Label(config_frame, text="Модель ASIC:").grid(row=0, column=0, sticky='w')
+            self.roi_model_var = tk.StringVar(value="Antminer S19 Pro")
+            ttk.Entry(config_frame, textvariable=self.roi_model_var).grid(row=0, column=1, padx=5)
+
+            ttk.Label(config_frame, text="Хешрейт (TH/s):").grid(row=1, column=0, sticky='w')
+            self.roi_hashrate_var = tk.StringVar(value="110")
+            ttk.Entry(config_frame, textvariable=self.roi_hashrate_var).grid(row=1, column=1, padx=5)
+
+            ttk.Label(config_frame, text="Мощность (Вт):").grid(row=2, column=0, sticky='w')
+            self.roi_power_var = tk.StringVar(value="3250")
+            ttk.Entry(config_frame, textvariable=self.roi_power_var).grid(row=2, column=1, padx=5)
+
+            ttk.Label(config_frame, text="Количество:").grid(row=3, column=0, sticky='w')
+            self.roi_quantity_var = tk.StringVar(value="10")
+            ttk.Entry(config_frame, textvariable=self.roi_quantity_var).grid(row=3, column=1, padx=5)
+
+            ttk.Label(config_frame, text="Цена ASIC ($):").grid(row=4, column=0, sticky='w')
+            self.roi_price_var = tk.StringVar(value="2500")
+            ttk.Entry(config_frame, textvariable=self.roi_price_var).grid(row=4, column=1, padx=5)
+
+            # Cooling costs
+            cooling_frame = ttk.LabelFrame(parent, text="Охлаждение")
+            cooling_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Label(cooling_frame, text="Тип охлаждения:").grid(row=0, column=0, sticky='w')
+            self.roi_cooling_type_var = tk.StringVar(value="hydro")
+            ttk.Combobox(cooling_frame, textvariable=self.roi_cooling_type_var,
+                         values=["air", "hydro"]).grid(row=0, column=1, padx=5)
+
+            ttk.Label(cooling_frame, text="CAPEX ($):").grid(row=1, column=0, sticky='w')
+            self.roi_cooling_capex_var = tk.StringVar(value="5000")
+            ttk.Entry(cooling_frame, textvariable=self.roi_cooling_capex_var).grid(row=1, column=1, padx=5)
+
+            ttk.Label(cooling_frame, text="Мощность (Вт):").grid(row=2, column=0, sticky='w')
+            self.roi_cooling_power_var = tk.StringVar(value="500")
+            ttk.Entry(cooling_frame, textvariable=self.roi_cooling_power_var).grid(row=2, column=1, padx=5)
+
+            # Electricity
+            elec_frame = ttk.LabelFrame(parent, text="Электроэнергия")
+            elec_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Label(elec_frame, text="Цена ($/кВт·ч):").grid(row=0, column=0, sticky='w')
+            self.roi_elec_price_var = tk.StringVar(value="0.08")
+            ttk.Entry(elec_frame, textvariable=self.roi_elec_price_var).grid(row=0, column=1, padx=5)
+
+            # Control buttons
+            btn_frame = ttk.Frame(parent)
+            btn_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Button(btn_frame, text="Рассчитать ROI",
+                      command=self.calculate_roi_gui).pack(side='left', padx=5)
+            ttk.Button(btn_frame, text="Прогноз на 12 месяцев",
+                      command=self.generate_roi_projection).pack(side='left', padx=5)
+
+            # Results
+            self.roi_results_text = tk.Text(parent, wrap=tk.WORD, height=15)
+            scrollbar = ttk.Scrollbar(parent, command=self.roi_results_text.yview)
+            self.roi_results_text.config(yscrollcommand=scrollbar.set)
+
+            self.roi_results_text.pack(side='left', fill='both', expand=True, padx=10, pady=5)
+            scrollbar.pack(side='right', fill='y')
+
+        def create_ml_tab(self, parent):
+            """Create ML analysis tab."""
+            # Sensor data input
+            sensor_frame = ttk.LabelFrame(parent, text="Данные Датчиков")
+            sensor_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Label(sensor_frame, text="ID Оборудования:").grid(row=0, column=0, sticky='w')
+            self.ml_equipment_id_var = tk.StringVar(value="ASIC-001")
+            ttk.Entry(sensor_frame, textvariable=self.ml_equipment_id_var).grid(row=0, column=1, padx=5)
+
+            ttk.Label(sensor_frame, text="Температура чипа (°C):").grid(row=1, column=0, sticky='w')
+            self.ml_chip_temp_var = tk.StringVar(value="75")
+            ttk.Entry(sensor_frame, textvariable=self.ml_chip_temp_var).grid(row=1, column=1, padx=5)
+
+            ttk.Label(sensor_frame, text="Температура жидкости (°C):").grid(row=2, column=0, sticky='w')
+            self.ml_coolant_temp_var = tk.StringVar(value="30")
+            ttk.Entry(sensor_frame, textvariable=self.ml_coolant_temp_var).grid(row=2, column=1, padx=5)
+
+            ttk.Label(sensor_frame, text="Расход (л/мин):").grid(row=3, column=0, sticky='w')
+            self.ml_flow_rate_var = tk.StringVar(value="10")
+            ttk.Entry(sensor_frame, textvariable=self.ml_flow_rate_var).grid(row=3, column=1, padx=5)
+
+            ttk.Label(sensor_frame, text="Хешрейт (TH/s):").grid(row=4, column=0, sticky='w')
+            self.ml_hashrate_var = tk.StringVar(value="110")
+            ttk.Entry(sensor_frame, textvariable=self.ml_hashrate_var).grid(row=4, column=1, padx=5)
+
+            # Control buttons
+            btn_frame = ttk.Frame(parent)
+            btn_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Button(btn_frame, text="Предсказать Отказ",
+                      command=self.predict_failure_gui).pack(side='left', padx=5)
+            ttk.Button(btn_frame, text="Оптимизировать Охлаждение",
+                      command=self.optimize_cooling_gui).pack(side='left', padx=5)
+
+            # Results
+            self.ml_results_text = tk.Text(parent, wrap=tk.WORD, height=15)
+            scrollbar = ttk.Scrollbar(parent, command=self.ml_results_text.yview)
+            self.ml_results_text.config(yscrollcommand=scrollbar.set)
+
+            self.ml_results_text.pack(side='left', fill='both', expand=True, padx=10, pady=5)
+            scrollbar.pack(side='right', fill='y')
+
+        def create_simulation_tab(self, parent):
+            """Create emergency simulation tab."""
+            # Simulation type
+            sim_type_frame = ttk.LabelFrame(parent, text="Тип Симуляции")
+            sim_type_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Label(sim_type_frame, text="Сценарий:").grid(row=0, column=0, sticky='w')
+            self.sim_type_var = tk.StringVar(value="pump_failure")
+            ttk.Combobox(sim_type_frame, textvariable=self.sim_type_var,
+                         values=["pump_failure", "fan_failure", "coolant_leak"]).grid(row=0, column=1, padx=5)
+
+            ttk.Label(sim_type_frame, text="Длительность (сек):").grid(row=1, column=0, sticky='w')
+            self.sim_duration_var = tk.StringVar(value="600")
+            ttk.Entry(sim_type_frame, textvariable=self.sim_duration_var).grid(row=1, column=1, padx=5)
+
+            ttk.Label(sim_type_frame, text="Время отказа (сек):").grid(row=2, column=0, sticky='w')
+            self.sim_failure_time_var = tk.StringVar(value="60")
+            ttk.Entry(sim_type_frame, textvariable=self.sim_failure_time_var).grid(row=2, column=1, padx=5)
+
+            # Control buttons
+            btn_frame = ttk.Frame(parent)
+            btn_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Button(btn_frame, text="Запустить Симуляцию",
+                      command=self.run_emergency_simulation).pack(side='left', padx=5)
+            ttk.Button(btn_frame, text="Сохранить График",
+                      command=self.save_simulation_plot).pack(side='left', padx=5)
+
+            # Results
+            self.sim_results_text = tk.Text(parent, wrap=tk.WORD, height=15)
+            scrollbar = ttk.Scrollbar(parent, command=self.sim_results_text.yview)
+            self.sim_results_text.config(yscrollcommand=scrollbar.set)
+
+            self.sim_results_text.pack(side='left', fill='both', expand=True, padx=10, pady=5)
+            scrollbar.pack(side='right', fill='y')
+
+        def create_api_tab(self, parent):
+            """Create mobile API tab."""
+            # API status
+            status_frame = ttk.LabelFrame(parent, text="Статус API Сервера")
+            status_frame.pack(fill='x', padx=10, pady=5)
+
+            self.api_status_label = ttk.Label(status_frame, text="Сервер не запущен")
+            self.api_status_label.pack(pady=10)
+
+            # Control buttons
+            btn_frame = ttk.Frame(parent)
+            btn_frame.pack(fill='x', padx=10, pady=5)
+
+            ttk.Button(btn_frame, text="Запустить API Сервер",
+                      command=self.start_api_server).pack(side='left', padx=5)
+            ttk.Button(btn_frame, text="Открыть Документацию",
+                      command=self.open_api_docs).pack(side='left', padx=5)
+
+            # API endpoints info
+            info_frame = ttk.LabelFrame(parent, text="API Endpoints")
+            info_frame.pack(fill='both', expand=True, padx=10, pady=5)
+
+            endpoints_text = """Доступные API endpoints:
+
+GET  /api/status                 - Статус системы
+GET  /api/equipment              - Список оборудования
+GET  /api/equipment/<id>         - Данные ASIC
+POST /api/equipment/<id>         - Обновить данные
+GET  /api/alerts                 - Получить алерты
+POST /api/roi                    - Расчёт ROI
+POST /api/predict_failure        - Предсказание отказа
+POST /api/optimize_cooling       - Оптимизация охлаждения
+GET  /api/dashboard              - Dashboard сводка
+
+Сервер запускается на: http://0.0.0.0:5000"""
+
+            text_widget = tk.Text(info_frame, wrap=tk.WORD, height=15)
+            scrollbar = ttk.Scrollbar(info_frame, command=text_widget.yview)
+            text_widget.config(yscrollcommand=scrollbar.set)
+
+            text_widget.insert(tk.END, endpoints_text)
+            text_widget.config(state='disabled')
+
+            text_widget.pack(side='left', fill='both', expand=True)
+            scrollbar.pack(side='right', fill='y')
+
+        # Implementation of the methods
+        def create_3d_visualization(self):
+            """Create 3D thermal visualization."""
+            try:
+                from visualization import ThermalMapper3D, RoomConfig, AsicPosition
+
+                # Get parameters
+                length = float(self.viz_length_var.get())
+                width = float(self.viz_width_var.get())
+                height = float(self.viz_height_var.get())
+                quantity = int(self.viz_quantity_var.get())
+                tdp = float(self.viz_tdp_var.get())
+
+                # Parse position
+                pos_parts = self.viz_position_var.get().split(',')
+                start_x, start_y, start_z = map(float, pos_parts)
+
+                # Create room and ASICs
+                room = RoomConfig(length=length, width=width, height=height)
+                mapper = ThermalMapper3D(room)
+                mapper.add_asic_rack(start_x, start_y, start_z, count=quantity, tdp_per_unit=tdp, model="ASIC")
+
+                # Get analysis
+                analysis = mapper.get_hotspot_analysis()
+
+                # Show results
+                results = f"""3D ТЕПЛОВАЯ ВИЗУАЛИЗАЦИЯ
+
+Конфигурация помещения:
+- Размеры: {length:.1f} × {width:.1f} × {height:.1f} м
+- Объём: {length * width * height:.1f} м³
+
+Конфигурация ASIC:
+- Количество: {quantity} шт
+- TDP на ASIC: {tdp:.0f} Вт
+- Общая мощность: {tdp * quantity:.0f} Вт
+- Расположение: ({start_x}, {start_y}, {start_z})
+
+АНАЛИЗ ГОРЯЧИХ ТОЧЕК:
+- Максимальная температура: {analysis['max_temp']:.1f}°C
+- Средняя температура: {analysis['avg_temp']:.1f}°C
+- Стандартное отклонение: {analysis['temp_std']:.1f}°C
+- Критический объём (>45°C): {analysis['critical_volume_percent']:.1f}%
+
+{'⚠️ ВНИМАНИЕ: Обнаружены критические зоны перегрева!' if analysis['hotspot_warning'] else '✅ Температурный режим в норме'}
+
+Для просмотра 3D визуализации нажмите 'Сохранить в HTML'
+"""
+
+                self.viz_results_text.delete(1.0, tk.END)
+                self.viz_results_text.insert(tk.END, results)
+
+                # Store mapper for saving
+                self.current_mapper = mapper
+
+                messagebox.showinfo("Успех", "3D визуализация создана! Нажмите 'Сохранить в HTML' для просмотра.")
+
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось создать визуализацию: {str(e)}")
+
+        def save_3d_visualization(self):
+            """Save 3D visualization to HTML."""
+            try:
+                if hasattr(self, 'current_mapper'):
+                    fig = self.current_mapper.create_plotly_figure()
+                    fig.write_html("thermal_3d_visualization.html")
+                    messagebox.showinfo("Успех", "3D визуализация сохранена в thermal_3d_visualization.html")
+                else:
+                    messagebox.showwarning("Предупреждение", "Сначала создайте визуализацию")
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось сохранить визуализацию: {str(e)}")
+
+        def calculate_roi_gui(self):
+            """Calculate ROI using GUI inputs."""
+            try:
+                from core.roi_calculator import ROICalculator, MiningConfig
+
+                config = MiningConfig(
+                    asic_model=self.roi_model_var.get(),
+                    hashrate_ths=float(self.roi_hashrate_var.get()),
+                    power_consumption_w=float(self.roi_power_var.get()),
+                    quantity=int(self.roi_quantity_var.get()),
+                    asic_price_usd=float(self.roi_price_var.get()),
+                    cooling_type=self.roi_cooling_type_var.get(),
+                    cooling_capex_usd=float(self.roi_cooling_capex_var.get()),
+                    cooling_power_w=float(self.roi_cooling_power_var.get()),
+                    electricity_price_kwh=float(self.roi_elec_price_var.get())
+                )
+
+                calc = ROICalculator(config)
+                roi = calc.calculate_roi()
+
+                # Format results
+                results = f"""РАСЧЁТ ROI - {config.asic_model}
+
+КОНФИГУРАЦИЯ:
+- ASIC: {config.asic_model}
+- Хешрейт: {config.hashrate_ths} TH/s на ASIC
+- Мощность: {config.power_consumption_w} Вт на ASIC
+- Количество: {config.quantity} шт
+- Цена ASIC: ${config.asic_price_usd:,.0f}
+
+ОХЛАЖДЕНИЕ:
+- Тип: {config.cooling_type}
+- CAPEX: ${config.cooling_capex_usd:,.0f}
+- Мощность: {config.cooling_power_w} Вт
+
+ЭЛЕКТРОЭНЕРГИЯ:
+- Цена: ${config.electricity_price_kwh:.4f}/кВт·ч
+
+ДОХОДЫ:
+- BTC в день: {roi['btc_per_day']:.8f} BTC
+- Доход в день: ${roi['revenue_per_day']:.2f}
+- Доход в месяц: ${roi['revenue_per_month']:.2f}
+- Доход в год: ${roi['revenue_per_year']:,.2f}
+
+РАСХОДЫ:
+- Электричество в день: ${roi['electricity_cost_per_day']:.2f}
+- Всего в день: ${roi['total_cost_per_day']:.2f}
+- Всего в месяц: ${roi['total_cost_per_month']:.2f}
+- Всего в год: ${roi['total_cost_per_year']:,.2f}
+
+ПРИБЫЛЬ:
+- В день: ${roi['profit_per_day']:.2f}
+- В месяц: ${roi['profit_per_month']:.2f}
+- В год: ${roi['profit_per_year']:,.2f}
+- Маржа: {roi['profit_margin_percent']:.1f}%
+
+ИНВЕСТИЦИИ И ROI:
+- Общие инвестиции: ${roi['total_investment']:,.0f}
+- Срок окупаемости: {roi['payback_months']:.1f} месяцев
+- ROI за 1 год: {roi['roi_1_year_percent']:.1f}%
+- Точка безубыточности: ${roi['breakeven_electricity_price']:.4f}/кВт·ч
+
+ЭФФЕКТИВНОСТЬ:
+- Потребление: {roi['power_consumption_kw']:.2f} кВт
+- Эффективность: {roi['efficiency_wth']:.1f} Вт/TH
+
+{'✅ ПРИБЫЛЬНО' if roi['is_profitable'] else '❌ УБЫТОЧНО'}
+"""
+
+                self.roi_results_text.delete(1.0, tk.END)
+                self.roi_results_text.insert(tk.END, results)
+
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось рассчитать ROI: {str(e)}")
+
+        def generate_roi_projection(self):
+            """Generate 12-month ROI projection."""
+            try:
+                from core.roi_calculator import ROICalculator, MiningConfig
+
+                config = MiningConfig(
+                    asic_model=self.roi_model_var.get(),
+                    hashrate_ths=float(self.roi_hashrate_var.get()),
+                    power_consumption_w=float(self.roi_power_var.get()),
+                    quantity=int(self.roi_quantity_var.get()),
+                    asic_price_usd=float(self.roi_price_var.get()),
+                    cooling_type=self.roi_cooling_type_var.get(),
+                    cooling_capex_usd=float(self.roi_cooling_capex_var.get()),
+                    cooling_power_w=float(self.roi_cooling_power_var.get()),
+                    electricity_price_kwh=float(self.roi_elec_price_var.get())
+                )
+
+                calc = ROICalculator(config)
+                projections = calc.generate_projection(12)
+
+                results = "ПРОГНОЗ ROI НА 12 МЕСЯЦЕВ (сложность +3%/мес)\n\n"
+                results += "Месяц | Прибыль | Накопительно | ROI\n"
+                results += "-------|--------|--------------|-----\n"
+
+                for proj in projections:
+                    results += f"{proj['month']:6d} | ${proj['monthly_profit']:6.0f} | ${proj['cumulative_profit']:9.0f} | {proj['roi_to_date_percent']:5.1f}%\n"
+
+                self.roi_results_text.delete(1.0, tk.END)
+                self.roi_results_text.insert(tk.END, results)
+
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось создать прогноз: {str(e)}")
+
+        def predict_failure_gui(self):
+            """Predict equipment failure using ML."""
+            try:
+                from ml import PredictiveMaintenanceModel, SensorData
+                from datetime import datetime
+
+                sensor_data = SensorData(
+                    timestamp=datetime.now(),
+                    chip_temp=float(self.ml_chip_temp_var.get()),
+                    coolant_temp=float(self.ml_coolant_temp_var.get()),
+                    ambient_temp=25.0,
+                    flow_rate=float(self.ml_flow_rate_var.get()),
+                    pressure=1.5,
+                    fan_rpm=3000,
+                    power_draw=3250,
+                    hashrate=float(self.ml_hashrate_var.get()),
+                    equipment_id=self.ml_equipment_id_var.get()
+                )
+
+                model = PredictiveMaintenanceModel()
+                prediction = model.predict_failure(sensor_data)
+
+                results = f"""ПРЕДСКАЗАНИЕ ОТКАЗА ОБОРУДОВАНИЯ
+
+ОБОРУДОВАНИЕ: {prediction.equipment_id}
+
+ДАННЫЕ ДАТЧИКОВ:
+- Температура чипа: {sensor_data.chip_temp}°C
+- Температура жидкости: {sensor_data.coolant_temp}°C
+- Расход: {sensor_data.flow_rate} л/мин
+- Хешрейт: {sensor_data.hashrate} TH/s
+
+ПРЕДСКАЗАНИЕ:
+- Вероятность отказа: {prediction.failure_probability:.1%}
+- Время до отказа: {prediction.predicted_failure_hours:.0f} часов ({prediction.predicted_failure_hours/24:.1f} дней)
+
+УРОВЕНЬ РИСКА: {prediction.risk_level.upper()}
+
+ОСНОВНЫЕ ФАКТОРЫ РИСКА:
+1. {prediction.contributing_factors[0]}
+2. {prediction.contributing_factors[1]}
+3. {prediction.contributing_factors[2]}
+
+РЕКОМЕНДАЦИИ:
+{prediction.recommended_action}
+"""
+
+                self.ml_results_text.delete(1.0, tk.END)
+                self.ml_results_text.insert(tk.END, results)
+
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось выполнить предсказание: {str(e)}")
+
+        def optimize_cooling_gui(self):
+            """Optimize cooling parameters."""
+            try:
+                from ml import CoolingOptimizer
+
+                optimizer = CoolingOptimizer()
+                chip_temp = float(self.ml_chip_temp_var.get())
+
+                # Assume hydro cooling for now
+                optimization = optimizer.optimize_flow_rate(
+                    chip_temp=chip_temp,
+                    ambient_temp=25.0,
+                    tdp=3250,
+                    target_temp=65.0
+                )
+
+                results = f"""ОПТИМИЗАЦИЯ СИСТЕМЫ ОХЛАЖДЕНИЯ
+
+ТЕКУЩИЕ ПАРАМЕТРЫ:
+- Температура чипа: {chip_temp}°C
+
+РЕКОМЕНДАЦИИ:
+- Расход охлаждающей жидкости: {optimization['recommended_flow_rate_lpm']:.1f} л/мин
+- Базовый расход: {optimization['baseline_flow_rate_lpm']:.1f} л/мин
+- Экономия энергии: {optimization['estimated_power_savings_w']:.0f} Вт
+- Ожидаемая температура: {optimization['estimated_chip_temp_c']:.1f}°C
+
+ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ:
+- Доверительность расчёта: {optimization['confidence']:.1%}
+
+Рекомендуется увеличить расход охлаждающей жидкости для снижения температуры чипа.
+"""
+
+                self.ml_results_text.delete(1.0, tk.END)
+                self.ml_results_text.insert(tk.END, results)
+
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось оптимизировать охлаждение: {str(e)}")
+
+        def run_emergency_simulation(self):
+            """Run emergency scenario simulation."""
+            try:
+                from simulation import EmergencySimulator
+
+                sim_type = self.sim_type_var.get()
+                duration = int(self.sim_duration_var.get())
+                failure_time = float(self.sim_failure_time_var.get())
+
+                simulator = EmergencySimulator()
+
+                if sim_type == "pump_failure":
+                    states, analysis = simulator.simulate_pump_failure(
+                        duration_seconds=duration, failure_time=failure_time)
+                    scenario_name = "Отказ насоса охлаждения"
+                elif sim_type == "fan_failure":
+                    states, analysis = simulator.simulate_fan_failure(
+                        duration_seconds=duration, failure_time=failure_time)
+                    scenario_name = "Отказ вентилятора"
+                elif sim_type == "coolant_leak":
+                    states, analysis = simulator.simulate_coolant_leak(
+                        duration_seconds=duration, leak_start=failure_time)
+                    scenario_name = "Утечка охлаждающей жидкости"
+
+                results = f"""СИМУЛЯЦИЯ АВАРИЙНОГО СЦЕНАРИЯ
+
+СЦЕНАРИЙ: {scenario_name}
+ДЛИТЕЛЬНОСТЬ: {duration} сек
+ВРЕМЯ ОТКАЗА: {failure_time} сек
+
+РЕЗУЛЬТАТЫ АНАЛИЗА:
+- Максимальная температура: {analysis['max_temp']:.1f}°C
+- Конечная температура: {analysis['final_temp']:.1f}°C
+
+ВРЕМЕННЫЕ МЕТРИКИ:
+"""
+
+                if 'time_to_warning' in analysis and analysis['time_to_warning']:
+                    results += f"- До предупреждения: {analysis['time_to_warning']:.0f} сек\n"
+                if 'time_to_critical' in analysis and analysis['time_to_critical']:
+                    results += f"- До критической температуры: {analysis['time_to_critical']:.0f} сек\n"
+                if 'time_to_shutdown' in analysis and analysis['time_to_shutdown']:
+                    results += f"- До аварийного отключения: {analysis['time_to_shutdown']:.0f} сек\n"
+
+                results += f"""
+ВЫВОДЫ:
+- Оборудование {'выжило' if analysis.get('equipment_survived', True) else 'повреждено'}
+- Критическая ситуация наступила через {analysis.get('time_to_critical', 'N/A')} сек после отказа
+
+ГРАФИК СОХРАНЁН: simulation_plot.png
+"""
+
+                self.sim_results_text.delete(1.0, tk.END)
+                self.sim_results_text.insert(tk.END, results)
+
+                # Create and save plot
+                fig = simulator.plot_simulation(states, analysis, 'simulation_plot.png')
+                print("График симуляции сохранён: simulation_plot.png")
+
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось выполнить симуляцию: {str(e)}")
+
+        def save_simulation_plot(self):
+            """Save current simulation plot."""
+            messagebox.showinfo("Информация", "График автоматически сохранён как simulation_plot.png")
+
+        def start_api_server(self):
+            """Start the mobile API server."""
+            try:
+                import subprocess
+                import os
+
+                # Start API server in background
+                api_script = os.path.join(os.path.dirname(__file__), 'mobile_api', 'api_server.py')
+                subprocess.Popen(['python', api_script], creationflags=subprocess.CREATE_NO_WINDOW)
+
+                self.api_status_label.config(text="Сервер запущен на http://0.0.0.0:5000")
+                messagebox.showinfo("Успех", "API сервер запущен! Откройте http://localhost:5000 в браузере")
+
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось запустить API сервер: {str(e)}")
+
+        def open_api_docs(self):
+            """Open API documentation."""
+            try:
+                import webbrowser
+                docs_path = os.path.join(os.path.dirname(__file__), 'mobile_api', 'README_MOBILE.md')
+                if os.path.exists(docs_path):
+                    webbrowser.open(f'file://{docs_path}')
+                else:
+                    messagebox.showinfo("Документация", "Документация API доступна в папке mobile_api/README_MOBILE.md")
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось открыть документацию: {str(e)}")
 
 
 def main():
